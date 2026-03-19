@@ -1,0 +1,24 @@
+services:
+  # Modo desenvolvimento (hot-reload, mais rápido para iniciar)
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    profiles:
+      - dev
+
+  # Modo produção (build otimizado)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    profiles:
+      - prod
