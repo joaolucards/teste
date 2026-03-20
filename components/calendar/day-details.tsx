@@ -44,7 +44,6 @@ interface DayDetailsProps {
   onEditTransaction: (transactionId: string, occurrenceDate?: string) => void
   onEditDailyBudget: () => void
   onEditVaultTransaction: (vaultId: string, vaultTxId: string) => void
-  onDeleteVaultTransaction: (vaultId: string, vaultTxId: string) => void
   onDeleteTransaction: (
     transactionId: string,
     scope: DeleteScope,
@@ -61,7 +60,6 @@ export function DayDetails({
   onEditTransaction,
   onEditDailyBudget,
   onEditVaultTransaction,
-  onDeleteVaultTransaction,
   onDeleteTransaction,
 }: DayDetailsProps) {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
@@ -315,12 +313,7 @@ export function DayDetails({
                         )}>
                           {net > 0 ? '+' : ''}{formatCurrency(net)}
                         </span>
-                        <button
-                          onClick={() => rep.vaultId && rep.vaultTxId && onDeleteVaultTransaction(rep.vaultId, rep.vaultTxId)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive ml-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+
                       </div>
                     </div>
                   )

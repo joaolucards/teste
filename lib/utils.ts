@@ -19,15 +19,22 @@ export function parseCurrency(value: string): number {
   return parseFloat(cleaned) || 0
 }
 
+
+// Criar data a partir de string ISO sem problemas de timezone
+export function parseISODate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 // Formatação de data
 export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
-  const d = typeof date === 'string' ? new Date(date) : date
+  const d = typeof date === 'string' ? parseISODate(date) : date
   return d.toLocaleDateString('pt-BR', options ?? { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 // Formatação de data curta (dia/mês)
 export function formatDateShort(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date
+  const d = typeof date === 'string' ? parseISODate(date) : date
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
@@ -45,11 +52,6 @@ export function toISODateString(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-// Criar data a partir de string ISO sem problemas de timezone
-export function parseISODate(dateString: string): Date {
-  const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
 
 // Adicionar dias a uma data
 export function addDays(date: Date, days: number): Date {

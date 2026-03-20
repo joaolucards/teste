@@ -19,7 +19,7 @@ export default function CalendarPage() {
   } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
-  const { vaults, vaultTransactions, getTotalVaulted, updateVaultTransaction, removeVaultTransaction } = useVaults()
+  const { vaults, vaultTransactions, getTotalVaulted, updateVaultTransaction } = useVaults()
   const { settings: dailyBudgetSettings, saveOverride: saveDailyBudgetOverride, saveDefault: saveDailyBudgetDefault } = useDailyBudget()
   const { getTransactionsForDate, getBalanceForDate } = useBalance(
     transactions,
@@ -38,10 +38,6 @@ export default function CalendarPage() {
   const [editingOccurrenceDate, setEditingOccurrenceDate] = useState<string | undefined>()
 
   const isLoading = txLoading || catLoading
-
-  const handleDeleteVaultTransaction = (vaultId: string, vaultTxId: string) => {
-    removeVaultTransaction(vaultId, vaultTxId)
-  }
 
   const handleEditVaultTransaction = (vaultId: string, vaultTxId: string) => {
     const tx = (vaultTransactions[vaultId] ?? []).find(t => t.id === vaultTxId)
@@ -166,7 +162,6 @@ export default function CalendarPage() {
               onEditTransaction={handleEditTransaction}
               onEditDailyBudget={handleEditDailyBudget}
               onEditVaultTransaction={handleEditVaultTransaction}
-              onDeleteVaultTransaction={handleDeleteVaultTransaction}
               onDeleteTransaction={handleDeleteTransaction}
             />
           )}
