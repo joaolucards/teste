@@ -43,7 +43,6 @@ interface DayDetailsProps {
   onAddTransaction: () => void
   onEditTransaction: (transactionId: string, occurrenceDate?: string) => void
   onEditDailyBudget: () => void
-  onEditVaultTransaction: (vaultId: string, vaultTxId: string) => void
   onDeleteTransaction: (
     transactionId: string,
     scope: DeleteScope,
@@ -59,7 +58,6 @@ export function DayDetails({
   onAddTransaction,
   onEditTransaction,
   onEditDailyBudget,
-  onEditVaultTransaction,
   onDeleteTransaction,
 }: DayDetailsProps) {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
@@ -291,21 +289,18 @@ export function DayDetails({
                   Cofrinhos
                 </p>
                 {Object.entries(byVault).map(([vaultId, txs]) => {
-                  // Net for this vault on this day: deposits are negative (leaving wallet), withdrawals positive
-                  const net = txs.reduce((sum, tx) =>
-                    sum + (tx.vaultTxType === 'deposit' ? -tx.amount : tx.amount), 0)
+                  // Net for this vault on this day: deposits leave wallet (negative), withdrawals return (positive)
+                  const deposits = txs.filter(tx => tx.vaultTxType === 'deposit').reduce((s, tx) => s + tx.amount, 0)
+                  const withdrawals = txs.filter(tx => tx.vaultTxType === 'withdrawal').reduce((s, tx) => s + tx.amount, 0)
+                  const net = withdrawals - deposits
                   // Representative tx for edit/delete
                   const rep = txs[0]
 
                   return (
                     <div key={vaultId} className="group flex items-center justify-between">
-                      <button
-                        className="flex-1 text-left text-sm hover:opacity-70 transition-opacity truncate pr-2"
-                        onClick={() => rep.vaultId && rep.vaultTxId && onEditVaultTransaction(rep.vaultId, rep.vaultTxId)}
-                      >
-                        {/* Show vault name from title prefix before the colon */}
+                      <span className="flex-1 text-sm truncate pr-2">
                         {rep.title.split(':')[0].replace(/^[↓↑]\s*/, '')}
-                      </button>
+                      </span>
                       <div className="flex items-center gap-1 shrink-0">
                         <span className={cn(
                           'text-sm font-semibold',

@@ -7,9 +7,8 @@ import { FinancialCalendar } from '@/components/calendar/financial-calendar'
 import { DayDetails } from '@/components/calendar/day-details'
 import { TransactionForm, type SaveScopeInfo } from '@/components/transactions/transaction-form'
 import { DailyBudgetForm } from '@/components/transactions/daily-budget-form'
-import { VaultTransactionForm } from '@/components/vaults/vault-transaction-form'
 import { useTransactions, useCategories, useSettings, useBalance, useVaults, useDailyBudget, DAILY_BUDGET_ID } from '@/lib/hooks/use-finance'
-import type { Transaction, DailyBudgetOverride, VaultTransaction } from '@/lib/types'
+import type { Transaction, DailyBudgetOverride } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function CalendarPage() {
@@ -19,7 +18,7 @@ export default function CalendarPage() {
   } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
-  const { vaults, vaultTransactions, getTotalVaulted, updateVaultTransaction } = useVaults()
+  const { vaults, vaultTransactions, getTotalVaulted } = useVaults()
   const { settings: dailyBudgetSettings, saveOverride: saveDailyBudgetOverride, saveDefault: saveDailyBudgetDefault } = useDailyBudget()
   const { getTransactionsForDate, getBalanceForDate } = useBalance(
     transactions,
@@ -32,20 +31,10 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDailyBudgetFormOpen, setIsDailyBudgetFormOpen] = useState(false)
-  const [isVaultTxFormOpen, setIsVaultTxFormOpen] = useState(false)
-  const [editingVaultTx, setEditingVaultTx] = useState<VaultTransaction | undefined>()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>()
   const [editingOccurrenceDate, setEditingOccurrenceDate] = useState<string | undefined>()
 
   const isLoading = txLoading || catLoading
-
-  const handleEditVaultTransaction = (vaultId: string, vaultTxId: string) => {
-    const tx = (vaultTransactions[vaultId] ?? []).find(t => t.id === vaultTxId)
-    if (tx) {
-      setEditingVaultTx(tx)
-      setIsVaultTxFormOpen(true)
-    }
-  }
 
   const handleEditDailyBudget = () => {
     setIsDailyBudgetFormOpen(true)
@@ -161,7 +150,6 @@ export default function CalendarPage() {
               onAddTransaction={handleAddTransaction}
               onEditTransaction={handleEditTransaction}
               onEditDailyBudget={handleEditDailyBudget}
-              onEditVaultTransaction={handleEditVaultTransaction}
               onDeleteTransaction={handleDeleteTransaction}
             />
           )}
@@ -200,16 +188,6 @@ export default function CalendarPage() {
         />
       )}
 
-      <VaultTransactionForm
-        open={isVaultTxFormOpen}
-        onOpenChange={(v) => { if (!v) setEditingVaultTx(undefined); setIsVaultTxFormOpen(v) }}
-        vaults={vaults}
-        editingTransaction={editingVaultTx}
-        onSave={(tx) => {
-          updateVaultTransaction(tx.vaultId, tx.id, tx)
-          setEditingVaultTx(undefined)
-        }}
-      />
     </>
   )
 }

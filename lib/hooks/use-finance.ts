@@ -455,10 +455,37 @@ export function useBalance(
       ) {
         running -= dailyBudgetSettings.defaultAmount
       }
+      // Vault movements for this day
+      if (vaultData) {
+        for (const vault of vaultData.vaults) {
+          const vtxs = vaultData.vaultTransactions[vault.id] ?? []
+          for (const vtx of vtxs) {
+            const base = parseISODate(vtx.effectiveDate)
+            let matches = false
+            if (vtx.recurrence.type === 'none') {
+              matches = vtx.effectiveDate === date
+            } else {
+              const recEnd = vtx.recurrence.endDate ? parseISODate(vtx.recurrence.endDate) : addDays(new Date(), days + 1)
+              let n = 0
+              while (true) {
+                const occ = getNthOccurrence(base, vtx as unknown as Transaction, n)
+                if (occ > recEnd) break
+                if (toISODateString(occ) === date) { matches = true; break }
+                if (toISODateString(occ) > date) break
+                n++
+              }
+            }
+            if (matches) {
+              running = vtx.type === 'deposit' ? running - vtx.amount : running + vtx.amount
+            }
+          }
+        }
+      }
+
       forecast.push({ date, balance: running, transactions: dayTxs })
     }
     return forecast
-  }, [transactions, currentBalance, dailyBudgetSettings])
+  }, [transactions, currentBalance, dailyBudgetSettings, vaultData])
 
   const getTransactionsForDate = useCallback((date: Date) => {
     const s = new Date(date); s.setHours(0, 0, 0, 0)
@@ -504,7 +531,7 @@ export function useBalance(
                 id: tx.id,
                 originalId: tx.id,
                 type: 'expense' as const,
-                amount: tx.type === 'deposit' ? tx.amount : -tx.amount,
+                amount: tx.amount,
                 categoryId: '',
                 title: `${tx.type === 'deposit' ? '↓' : '↑'} ${vault.name}: ${tx.title}`,
                 notes: tx.notes,
@@ -533,7 +560,7 @@ export function useBalance(
                   id: n === 0 ? tx.id : `${tx.id}-${dateStr}`,
                   originalId: tx.id,
                   type: 'expense' as const,
-                  amount: override?.amount ?? (tx.type === 'deposit' ? tx.amount : -tx.amount),
+                  amount: override?.amount ?? tx.amount,
                   categoryId: '',
                   title: `${tx.type === 'deposit' ? '↓' : '↑'} ${vault.name}: ${tx.title}`,
                   notes: tx.notes,
@@ -580,8 +607,8 @@ export function useBalance(
       let defaultTotal2 = 0
       if (dailyBudgetSettings?.defaultAmount && dailyBudgetSettings.defaultFrom) {
         const overrideDates2 = new Set((dailyBudgetSettings.overrides ?? []).map(o => o.date))
-        const startD2 = new Date(dailyBudgetSettings.defaultFrom + 'T00:00:00')
-        const targetD2 = new Date(str + 'T00:00:00')
+        const startD2 = parseISODate(dailyBudgetSettings.defaultFrom)
+        const targetD2 = parseISODate(str)
         for (let d = new Date(startD2); d <= targetD2; d.setDate(d.getDate() + 1)) {
           const ds = toISODateString(d)
           if (!overrideDates2.has(ds)) {
@@ -589,7 +616,33 @@ export function useBalance(
           }
         }
       }
-      return txBal - overrideTotal2 - defaultTotal2
+      // Vault movements up to target date
+      let vaultTotal2 = 0
+      if (vaultData) {
+        const farPast = new Date(2000, 0, 1)
+        const targetD3 = parseISODate(str)
+        for (const vault of vaultData.vaults) {
+          const vtxs = vaultData.vaultTransactions[vault.id] ?? []
+          for (const vtx of vtxs) {
+            const base = parseISODate(vtx.effectiveDate)
+            if (vtx.recurrence.type === 'none') {
+              if (vtx.effectiveDate <= str) {
+                vaultTotal2 += vtx.type === 'deposit' ? vtx.amount : -vtx.amount
+              }
+            } else {
+              const recEnd = vtx.recurrence.endDate ? parseISODate(vtx.recurrence.endDate) : targetD3
+              let n = 0
+              while (true) {
+                const occ = getNthOccurrence(base, vtx as unknown as Transaction, n)
+                if (occ > targetD3 || occ > recEnd) break
+                vaultTotal2 += vtx.type === 'deposit' ? vtx.amount : -vtx.amount
+                n++
+              }
+            }
+          }
+        }
+      }
+      return txBal - overrideTotal2 - defaultTotal2 - vaultTotal2
     }
 
     const days     = Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
