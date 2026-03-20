@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from './auth-provider'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { SpinnerGap as Loader2 } from '@phosphor-icons/react'
 
 export function LoginScreen() {
   const { signIn } = useAuth()
