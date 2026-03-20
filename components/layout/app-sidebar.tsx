@@ -9,6 +9,7 @@ import {
   Tags,
   Settings,
   Wallet,
+  PiggyBank,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -28,6 +29,7 @@ const menuItems = [
   { title: 'Calendário',   url: '/calendar',     icon: Calendar },
   { title: 'Transações',   url: '/transactions', icon: ArrowLeftRight },
   { title: 'Categorias',   url: '/categories',   icon: Tags },
+  { title: 'Cofrinhos',    url: '/vaults',       icon: PiggyBank },
   { title: 'Configurações',url: '/settings',     icon: Settings },
 ]
 
