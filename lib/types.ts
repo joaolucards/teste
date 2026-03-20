@@ -42,6 +42,7 @@ export interface Transaction {
   paymentMethod?: PaymentMethod // apenas para expenses
   recurrence: Recurrence
   overrides?: RecurrenceOverride[] // ajustes por ocorrência
+  hiddenFromCalendar?: boolean // oculta dots/totais no grid, mas conta no saldo
   createdAt: string
 }
 

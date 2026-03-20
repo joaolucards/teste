@@ -70,6 +70,9 @@ export function TransactionForm({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(
     transaction?.recurrence.endDate ? new Date(transaction.recurrence.endDate) : undefined
   )
+  const [hiddenFromCalendar, setHiddenFromCalendar] = useState(
+    transaction?.hiddenFromCalendar ?? false
+  )
 
   // Estado do seletor de escopo (aparece ao salvar uma transação recorrente em edição)
   const [formStep, setFormStep] = useState<'edit' | 'scope'>('edit')
@@ -96,6 +99,7 @@ export function TransactionForm({
         setRecurrenceType(transaction.recurrence.type === 'none' ? 'monthly' : transaction.recurrence.type)
         setCustomInterval(transaction.recurrence.interval || 30)
         setRecurrenceEndDate(transaction.recurrence.endDate ? parseISODate(transaction.recurrence.endDate) : undefined)
+        setHiddenFromCalendar(transaction.hiddenFromCalendar ?? false)
         // Pré-selecionar escopo se veio do calendário
         if (occurrenceDate) {
           setEditScope('this-only')
@@ -116,6 +120,7 @@ export function TransactionForm({
         setRecurrenceType('monthly')
         setCustomInterval(30)
         setRecurrenceEndDate(undefined)
+        setHiddenFromCalendar(false)
       }
     }
   }, [open, transaction, defaultDate, defaultType, occurrenceDate])
@@ -155,6 +160,7 @@ export function TransactionForm({
         }
       : { type: 'none' },
     overrides: transaction?.overrides ?? [],
+    hiddenFromCalendar: hiddenFromCalendar || undefined,
     createdAt: transaction?.createdAt || new Date().toISOString(),
   })
 
@@ -385,6 +391,18 @@ export function TransactionForm({
                         placeholder="Sem data final"
                       />
                     </Field>
+
+                    {recurrenceType === 'daily' && (
+                      <div className="flex items-center justify-between rounded-lg border border-dashed p-3">
+                        <div>
+                          <p className="text-sm font-medium">Ocultar no calendário</p>
+                          <p className="text-xs text-muted-foreground">
+                            A transação conta no saldo mas não exibe pontos ou totais no grid do calendário
+                          </p>
+                        </div>
+                        <Switch checked={hiddenFromCalendar} onCheckedChange={setHiddenFromCalendar} />
+                      </div>
+                    )}
                   </>
                 )}
               </div>

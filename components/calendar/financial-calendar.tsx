@@ -63,7 +63,8 @@ export function FinancialCalendar({
     for (const day of calendarDays) {
       if (!day) continue
       const dateStr = toISODateString(day)
-      const dayTxs = getTransactionsForDate(day)
+      // Filtra transações ocultas do calendário — elas continuam no saldo, só somem do grid
+      const dayTxs = getTransactionsForDate(day).filter(tx => !tx.hiddenFromCalendar)
       let income = 0
       let expense = 0
       for (const tx of dayTxs) {
