@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { CurrencyInput } from '@/components/shared/currency-input'
 import { DatePicker } from '@/components/shared/date-picker'
-import { generateId, toISODateString } from '@/lib/utils'
+import { generateId, toISODateString, parseISODate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Vault, VaultTransaction, VaultTransactionType, RecurrenceType } from '@/lib/types'
 
@@ -55,10 +55,10 @@ export function VaultTransactionForm({
         setAmount(editingTransaction.amount)
         setTitle(editingTransaction.title)
         setNotes(editingTransaction.notes || '')
-        setDate(new Date(editingTransaction.date))
+        setDate(parseISODate(editingTransaction.date))
         setIsRecurring(editingTransaction.recurrence.type !== 'none')
         setRecurrenceType(editingTransaction.recurrence.type === 'none' ? 'monthly' : editingTransaction.recurrence.type)
-        setRecurrenceEndDate(editingTransaction.recurrence.endDate ? new Date(editingTransaction.recurrence.endDate) : undefined)
+        setRecurrenceEndDate(editingTransaction.recurrence.endDate ? parseISODate(editingTransaction.recurrence.endDate) : undefined)
       } else {
         setType(defaultType)
         setVaultId(defaultVaultId || vaults[0]?.id || '')

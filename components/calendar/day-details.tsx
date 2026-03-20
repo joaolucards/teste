@@ -44,6 +44,7 @@ interface DayDetailsProps {
   onEditTransaction: (transactionId: string, occurrenceDate?: string) => void
   onEditDailyBudget: () => void
   onEditVaultTransaction: (vaultId: string, vaultTxId: string) => void
+  onDeleteVaultTransaction: (vaultId: string, vaultTxId: string) => void
   onDeleteTransaction: (
     transactionId: string,
     scope: DeleteScope,
@@ -60,6 +61,7 @@ export function DayDetails({
   onEditTransaction,
   onEditDailyBudget,
   onEditVaultTransaction,
+  onDeleteVaultTransaction,
   onDeleteTransaction,
 }: DayDetailsProps) {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
@@ -274,32 +276,58 @@ export function DayDetails({
             </div>
           )}
 
-          {/* Vault entries section */}
-          {vaultEntries.length > 0 && (
-            <div className="rounded-lg border border-dashed border-blue-200 dark:border-blue-900 p-3 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Cofrinhos
-              </p>
-              {vaultEntries.map(tx => (
-                <div key={tx.id} className="flex items-center justify-between">
-                  <button
-                    className="flex items-center gap-2 text-left hover:opacity-70 transition-opacity"
-                    onClick={() => tx.vaultId && tx.vaultTxId && onEditVaultTransaction(tx.vaultId, tx.vaultTxId)}
-                  >
-                    <span className="text-sm">{tx.title}</span>
-                  </button>
-                  <span className={cn(
-                    'text-sm font-semibold shrink-0 ml-2',
-                    tx.vaultTxType === 'deposit'
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-amber-600 dark:text-amber-400'
-                  )}>
-                    {tx.vaultTxType === 'deposit' ? '-' : '+'}{formatCurrency(tx.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Vault entries — grouped by vault, showing total per vault */}
+          {vaultEntries.length > 0 && (() => {
+            // Group by vaultTxId (each unique vault transaction)
+            // but show one line per vault with the net total of all its entries that day
+            const byVault = vaultEntries.reduce<Record<string, typeof vaultEntries>>((acc, tx) => {
+              const key = tx.vaultId || tx.id
+              if (!acc[key]) acc[key] = []
+              acc[key].push(tx)
+              return acc
+            }, {})
+
+            return (
+              <div className="rounded-lg border border-dashed border-blue-200 dark:border-blue-900 p-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Cofrinhos
+                </p>
+                {Object.entries(byVault).map(([vaultId, txs]) => {
+                  // Net for this vault on this day: deposits are negative (leaving wallet), withdrawals positive
+                  const net = txs.reduce((sum, tx) =>
+                    sum + (tx.vaultTxType === 'deposit' ? -tx.amount : tx.amount), 0)
+                  // Representative tx for edit/delete
+                  const rep = txs[0]
+
+                  return (
+                    <div key={vaultId} className="group flex items-center justify-between">
+                      <button
+                        className="flex-1 text-left text-sm hover:opacity-70 transition-opacity truncate pr-2"
+                        onClick={() => rep.vaultId && rep.vaultTxId && onEditVaultTransaction(rep.vaultId, rep.vaultTxId)}
+                      >
+                        {/* Show vault name from title prefix before the colon */}
+                        {rep.title.split(':')[0].replace(/^[↓↑]\s*/, '')}
+                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={cn(
+                          'text-sm font-semibold',
+                          net < 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'
+                        )}>
+                          {net > 0 ? '+' : ''}{formatCurrency(net)}
+                        </span>
+                        <button
+                          onClick={() => rep.vaultId && rep.vaultTxId && onDeleteVaultTransaction(rep.vaultId, rep.vaultTxId)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive ml-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
 
           {/* Summary (regular txs only) */}
           {regularTxs.length > 0 && (
