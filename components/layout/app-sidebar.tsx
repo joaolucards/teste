@@ -24,31 +24,11 @@ import {
 } from '@/components/ui/sidebar'
 
 const menuItems = [
-  {
-    title: 'Dashboard',
-    url: '/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'Calendário',
-    url: '/calendar',
-    icon: Calendar,
-  },
-  {
-    title: 'Transações',
-    url: '/transactions',
-    icon: ArrowLeftRight,
-  },
-  {
-    title: 'Categorias',
-    url: '/categories',
-    icon: Tags,
-  },
-  {
-    title: 'Configurações',
-    url: '/settings',
-    icon: Settings,
-  },
+  { title: 'Dashboard',    url: '/dashboard',    icon: LayoutDashboard },
+  { title: 'Calendário',   url: '/calendar',     icon: Calendar },
+  { title: 'Transações',   url: '/transactions', icon: ArrowLeftRight },
+  { title: 'Categorias',   url: '/categories',   icon: Tags },
+  { title: 'Configurações',url: '/settings',     icon: Settings },
 ]
 
 export function AppSidebar() {

@@ -15,10 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Category, ExpandedTransaction } from '@/lib/types'
-import {
-  Plus, ArrowDownLeft, ArrowUpRight, CreditCard, Banknote,
-  Repeat, Wallet, Trash2,
-} from 'lucide-react'
+import { Plus, ArrowDownLeft, ArrowUpRight, CreditCard, Banknote, Repeat, Wallet, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type DeleteScope = 'all' | 'this-only' | 'from-date'

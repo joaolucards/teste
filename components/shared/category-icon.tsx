@@ -10,36 +10,36 @@ import {
 import { cn } from '@/lib/utils'
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  'utensils': Utensils,
-  'car': Car,
-  'home': Home,
-  'heart-pulse': HeartPulse,
-  'gamepad-2': Gamepad2,
+  'utensils':       Utensils,
+  'car':            Car,
+  'home':           Home,
+  'heart-pulse':    HeartPulse,
+  'gamepad-2':      Gamepad2,
   'graduation-cap': GraduationCap,
-  'shopping-bag': ShoppingBag,
-  'wallet': Wallet,
-  'briefcase': Briefcase,
-  'trending-up': TrendingUp,
-  'ellipsis': Ellipsis,
-  'coffee': Coffee,
-  'phone': Phone,
-  'wifi': Wifi,
-  'music': Music,
-  'film': Film,
-  'plane': Plane,
-  'gift': Gift,
-  'book': Book,
-  'shirt': Shirt,
-  'dumbbell': Dumbbell,
-  'pill': Pill,
-  'baby': Baby,
-  'dog': Dog,
-  'cat': Cat,
-  'credit-card': CreditCard,
-  'banknote': Banknote,
-  'piggy-bank': PiggyBank,
-  'receipt': Receipt,
-  'calculator': Calculator,
+  'shopping-bag':   ShoppingBag,
+  'wallet':         Wallet,
+  'briefcase':      Briefcase,
+  'trending-up':    TrendingUp,
+  'ellipsis':       Ellipsis,
+  'coffee':         Coffee,
+  'phone':          Phone,
+  'wifi':           Wifi,
+  'music':          Music,
+  'film':           Film,
+  'plane':          Plane,
+  'gift':           Gift,
+  'book':           Book,
+  'shirt':          Shirt,
+  'dumbbell':       Dumbbell,
+  'pill':           Pill,
+  'baby':           Baby,
+  'dog':            Dog,
+  'cat':            Cat,
+  'credit-card':    CreditCard,
+  'banknote':       Banknote,
+  'piggy-bank':     PiggyBank,
+  'receipt':        Receipt,
+  'calculator':     Calculator,
 }
 
 interface CategoryIconProps {
@@ -51,7 +51,7 @@ interface CategoryIconProps {
 
 export function CategoryIcon({ icon, color, className, size = 'md' }: CategoryIconProps) {
   const IconComponent = iconMap[icon] || Ellipsis
-  
+
   const sizeClasses = {
     sm: 'h-3 w-3',
     md: 'h-4 w-4',
@@ -59,8 +59,8 @@ export function CategoryIcon({ icon, color, className, size = 'md' }: CategoryIc
   }
 
   return (
-    <IconComponent 
-      className={cn(sizeClasses[size], className)} 
+    <IconComponent
+      className={cn(sizeClasses[size], className)}
       style={color ? { color } : undefined}
     />
   )
@@ -75,12 +75,12 @@ interface CategoryBadgeProps {
 
 export function CategoryBadge({ icon, color, name, className }: CategoryBadgeProps) {
   return (
-    <div 
+    <div
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
         className
       )}
-      style={{ 
+      style={{
         backgroundColor: `${color}20`,
         color: color,
       }}

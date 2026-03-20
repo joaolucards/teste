@@ -1,12 +1,16 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Roboto } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/auth/auth-provider"
 import { AppShell } from "@/components/layout/app-shell"
 import { Toaster } from "@/components/ui/sonner"
 
-const fontSans = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const fontSans = Roboto({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  variable: '--font-sans',
+})
 
 export const metadata: Metadata = {
   title: "Gestão Financeira",

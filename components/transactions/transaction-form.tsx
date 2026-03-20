@@ -211,7 +211,7 @@ export function TransactionForm({
       if (!v) setFormStep('edit')
       onOpenChange(v)
     }}>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent className="overflow-y-auto px-6">
         {/* ── Etapa 1: Formulário ── */}
         {formStep === 'edit' && (
           <>
