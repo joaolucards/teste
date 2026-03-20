@@ -89,7 +89,9 @@ export function FinancialCalendar({
   }
 
   const currentYear = today.getFullYear()
-  const YEARS = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
+  const START_YEAR = currentYear - 5
+  const END_YEAR = 2050
+  const YEARS = Array.from({ length: END_YEAR - START_YEAR + 1 }, (_, i) => START_YEAR + i)
 
   const handleMonthChange = (value: string) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), parseInt(value), 1))
@@ -106,7 +108,7 @@ export function FinancialCalendar({
         {/* Month + Year selects */}
         <div className="flex items-center gap-2">
           <Select value={String(currentMonth.getMonth())} onValueChange={handleMonthChange}>
-            <SelectTrigger className="h-8 w-[130px] text-sm font-semibold border-none shadow-none px-2 focus:ring-0">
+            <SelectTrigger className="h-9 w-[145px] text-lg font-semibold border-none shadow-none px-2 focus:ring-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -115,8 +117,8 @@ export function FinancialCalendar({
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(currentMonth.getFullYear())} onValueChange={handleYearChange}>
-            <SelectTrigger className="h-8 w-[80px] text-sm font-semibold border-none shadow-none px-2 focus:ring-0">
+          <Select value={YEARS.includes(currentMonth.getFullYear()) ? String(currentMonth.getFullYear()) : undefined} onValueChange={handleYearChange}>
+            <SelectTrigger className="h-9 w-[90px] text-lg font-semibold border-none shadow-none px-2 focus:ring-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
