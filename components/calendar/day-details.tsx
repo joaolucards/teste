@@ -42,6 +42,7 @@ interface DayDetailsProps {
   balance: number
   onAddTransaction: () => void
   onEditTransaction: (transactionId: string, occurrenceDate?: string) => void
+  onEditDailyBudget: () => void
   onDeleteTransaction: (
     transactionId: string,
     scope: DeleteScope,
@@ -56,6 +57,7 @@ export function DayDetails({
   balance,
   onAddTransaction,
   onEditTransaction,
+  onEditDailyBudget,
   onDeleteTransaction,
 }: DayDetailsProps) {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
@@ -235,10 +237,7 @@ export function DayDetails({
                   Gasto Diário
                 </p>
                 <button
-                  onClick={() => onEditTransaction(
-                    dailyBudgetTx.originalId || dailyBudgetTx.id,
-                    dailyBudgetTx.isRecurrence ? dailyBudgetTx.occurrenceDate : undefined
-                  )}
+                  onClick={onEditDailyBudget}
                   className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Editar

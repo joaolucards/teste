@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { Transaction, Category, AccountSettings, ExpandedTransaction, RecurrenceOverride } from '../types'
+import type { Transaction, Category, AccountSettings, ExpandedTransaction, RecurrenceOverride, DailyBudgetSettings, DailyBudgetOverride } from '../types'
 import * as fs from '../firestore'
 import { useAuth } from '@/components/auth/auth-provider'
 import { toISODateString, addDays, addMonths, parseISODate } from '../utils'
@@ -92,6 +92,35 @@ export function useTransactions() {
   }, [user])
 
   return { transactions, isLoading, add, update, remove, splitFromDate, addOverride, removeRecurrence }
+}
+
+
+
+// ─── Daily Budget ─────────────────────────────────────────────────────────────
+
+export const DAILY_BUDGET_ID = '__daily_budget__'
+
+export function useDailyBudget() {
+  const { user } = useAuth()
+  const [settings, setSettings] = useState<DailyBudgetSettings>({ overrides: [] })
+
+  useEffect(() => {
+    if (!user) { setSettings({ overrides: [] }); return }
+    const unsub = fs.subscribeDailyBudget(user.uid, setSettings)
+    return unsub
+  }, [user])
+
+  const saveOverride = useCallback(async (override: DailyBudgetOverride) => {
+    if (!user) return
+    try {
+      await fs.saveDailyBudgetOverride(user.uid, override)
+    } catch (err) {
+      console.error('Erro ao salvar gasto diário:', err)
+      toast.error('Erro ao salvar. Tente novamente.')
+    }
+  }, [user])
+
+  return { settings, saveOverride }
 }
 
 // ─── Categories ───────────────────────────────────────────────────
@@ -225,16 +254,25 @@ function expandRecurrences(
 
 // ─── Balance ──────────────────────────────────────────────────────
 
-export function useBalance(transactions: Transaction[], initialBalance: number) {
+export function useBalance(
+  transactions: Transaction[],
+  initialBalance: number,
+  dailyBudgetSettings?: DailyBudgetSettings,
+) {
   const currentBalance = useMemo(() => {
     const today = toISODateString(new Date())
-    return transactions.reduce((bal, tx) => {
+    const txBalance = transactions.reduce((bal, tx) => {
       if (tx.effectiveDate <= today) {
         return tx.type === 'income' ? bal + tx.amount : bal - tx.amount
       }
       return bal
     }, initialBalance)
-  }, [transactions, initialBalance])
+    // Subtract daily budget overrides up to today
+    const dailyTotal = (dailyBudgetSettings?.overrides ?? [])
+      .filter(o => o.date <= today)
+      .reduce((s, o) => s + o.amount, 0)
+    return txBalance - dailyTotal
+  }, [transactions, initialBalance, dailyBudgetSettings])
 
   const getForecast = useCallback((days = 30) => {
     const today   = new Date()
@@ -249,16 +287,42 @@ export function useBalance(transactions: Transaction[], initialBalance: number) 
       for (const t of dayTxs) {
         running = t.type === 'income' ? running + t.amount : running - t.amount
       }
+      // Include daily budget override if exists for this date
+      const dbOverride = dailyBudgetSettings?.overrides.find(o => o.date === date)
+      if (dbOverride && dbOverride.amount > 0) {
+        running -= dbOverride.amount
+      }
       forecast.push({ date, balance: running, transactions: dayTxs })
     }
     return forecast
-  }, [transactions, currentBalance])
+  }, [transactions, currentBalance, dailyBudgetSettings])
 
   const getTransactionsForDate = useCallback((date: Date) => {
     const s = new Date(date); s.setHours(0, 0, 0, 0)
     const e = new Date(date); e.setHours(23, 59, 59, 999)
-    return expandRecurrences(transactions, s, e)
-  }, [transactions])
+    const regular = expandRecurrences(transactions, s, e)
+
+    // Inject synthetic daily budget entry
+    const dateStr = toISODateString(new Date(date))
+    const override = dailyBudgetSettings?.overrides.find(o => o.date === dateStr)
+    const dailyEntry: ExpandedTransaction = {
+      id: `${DAILY_BUDGET_ID}-${dateStr}`,
+      originalId: DAILY_BUDGET_ID,
+      type: 'expense',
+      amount: override?.amount ?? 0,
+      categoryId: '',
+      title: 'Gasto Diário',
+      notes: override?.notes,
+      date: dateStr,
+      effectiveDate: dateStr,
+      occurrenceDate: dateStr,
+      isRecurrence: true,
+      isDailyBudget: true,
+      createdAt: '',
+    }
+
+    return [...regular, dailyEntry]
+  }, [transactions, dailyBudgetSettings])
 
   const getBalanceForDate = useCallback((targetDate: Date) => {
     const today  = new Date(); today.setHours(0, 0, 0, 0)
@@ -266,12 +330,16 @@ export function useBalance(transactions: Transaction[], initialBalance: number) 
 
     if (target <= today) {
       const str = toISODateString(target)
-      return transactions.reduce((bal, tx) => {
+      const txBal = transactions.reduce((bal, tx) => {
         if (tx.effectiveDate <= str) {
           return tx.type === 'income' ? bal + tx.amount : bal - tx.amount
         }
         return bal
       }, initialBalance)
+      const dailyTotal = (dailyBudgetSettings?.overrides ?? [])
+        .filter(o => o.date <= str)
+        .reduce((s, o) => s + o.amount, 0)
+      return txBal - dailyTotal
     }
 
     const days     = Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
@@ -306,21 +374,19 @@ export function useBalance(transactions: Transaction[], initialBalance: number) 
    * avgMonthly — avgDaily × dias do mês corrente
    */
   const getDailyBudgetStats = useCallback(() => {
-    const dailyBudget = transactions.find(tx => tx.isDailyBudget)
-    if (!dailyBudget) return null
-
+    const overrides = dailyBudgetSettings?.overrides ?? []
     const today = new Date()
-    const thirtyDaysAgo = addDays(today, -30)
-    const expanded = expandRecurrences([dailyBudget], thirtyDaysAgo, today)
-    const withValue = expanded.filter(tx => tx.amount > 0)
+    const thirtyDaysAgo = toISODateString(addDays(today, -30))
+    const todayStr = toISODateString(today)
 
-    if (withValue.length === 0) return { avgDaily: 0, avgMonthly: 0, transaction: dailyBudget }
+    const recent = overrides.filter(o => o.date >= thirtyDaysAgo && o.date <= todayStr && o.amount > 0)
+    if (recent.length === 0) return { avgDaily: 0, avgMonthly: 0 }
 
-    const total = withValue.reduce((s, tx) => s + tx.amount, 0)
-    const avgDaily = total / withValue.length
+    const total = recent.reduce((s, o) => s + o.amount, 0)
+    const avgDaily = total / recent.length
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-    return { avgDaily, avgMonthly: avgDaily * daysInMonth, transaction: dailyBudget }
-  }, [transactions])
+    return { avgDaily, avgMonthly: avgDaily * daysInMonth }
+  }, [dailyBudgetSettings])
 
   return { currentBalance, getForecast, getTransactionsForDate, getBalanceForDate, getMonthSummary, getCategoryBreakdown, getDailyBudgetStats }
 }

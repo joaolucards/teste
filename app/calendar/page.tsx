@@ -6,8 +6,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { FinancialCalendar } from '@/components/calendar/financial-calendar'
 import { DayDetails } from '@/components/calendar/day-details'
 import { TransactionForm, type SaveScopeInfo } from '@/components/transactions/transaction-form'
-import { useTransactions, useCategories, useSettings, useBalance } from '@/lib/hooks/use-finance'
-import type { Transaction } from '@/lib/types'
+import { DailyBudgetForm } from '@/components/transactions/daily-budget-form'
+import { useTransactions, useCategories, useSettings, useBalance, useDailyBudget, DAILY_BUDGET_ID } from '@/lib/hooks/use-finance'
+import type { Transaction, DailyBudgetOverride } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function CalendarPage() {
@@ -17,19 +18,28 @@ export default function CalendarPage() {
   } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
+  const { settings: dailyBudgetSettings, saveOverride: saveDailyBudgetOverride } = useDailyBudget()
   const { getTransactionsForDate, getBalanceForDate } = useBalance(
     transactions,
-    settings.initialBalance
+    settings.initialBalance,
+    dailyBudgetSettings,
   )
-
-  const hasDailyBudget = transactions.some(tx => tx.isDailyBudget)
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isDailyBudgetFormOpen, setIsDailyBudgetFormOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>()
   const [editingOccurrenceDate, setEditingOccurrenceDate] = useState<string | undefined>()
 
   const isLoading = txLoading || catLoading
+
+  const handleEditDailyBudget = () => {
+    setIsDailyBudgetFormOpen(true)
+  }
+
+  const handleSaveDailyBudget = (override: DailyBudgetOverride) => {
+    saveDailyBudgetOverride(override)
+  }
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date)
@@ -132,6 +142,7 @@ export default function CalendarPage() {
               balance={selectedDateBalance}
               onAddTransaction={handleAddTransaction}
               onEditTransaction={handleEditTransaction}
+              onEditDailyBudget={handleEditDailyBudget}
               onDeleteTransaction={handleDeleteTransaction}
             />
           )}
@@ -146,8 +157,19 @@ export default function CalendarPage() {
         categories={categories}
         defaultDate={selectedDate || undefined}
         occurrenceDate={editingOccurrenceDate}
-        hasDailyBudget={hasDailyBudget && !editingTransaction?.isDailyBudget}
       />
+
+      {selectedDate && (
+        <DailyBudgetForm
+          open={isDailyBudgetFormOpen}
+          onOpenChange={setIsDailyBudgetFormOpen}
+          date={selectedDate}
+          existing={dailyBudgetSettings.overrides.find(
+            o => o.date === selectedDate.toISOString().split('T')[0]
+          )}
+          onSave={handleSaveDailyBudget}
+        />
+      )}
     </>
   )
 }

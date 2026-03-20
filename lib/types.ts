@@ -16,20 +16,19 @@ export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'custom'
 
 export interface Recurrence {
   type: RecurrenceType
-  interval?: number // dias entre recorrências (para custom)
-  endDate?: string // data final (opcional)
+  interval?: number
+  endDate?: string
 }
 
-// Override de uma ocorrência específica de uma transação recorrente
 export interface RecurrenceOverride {
-  date: string // ISO date da ocorrência que está sendo sobrescrita
+  date: string
   amount?: number
   title?: string
   notes?: string
   categoryId?: string
   effectiveDate?: string
   paymentMethod?: PaymentMethod
-  skip?: boolean // true = pular esta ocorrência
+  skip?: boolean
 }
 
 export interface Transaction {
@@ -37,21 +36,13 @@ export interface Transaction {
   type: 'income' | 'expense'
   amount: number
   categoryId: string
-  /** Título curto exibido no card */
   title: string
-  /** Notas/detalhamento exibido via tooltip */
   notes?: string
-  date: string // data da transação (ISO string)
-  effectiveDate: string // data do débito efetivo (para crédito)
-  paymentMethod?: PaymentMethod // apenas para expenses
+  date: string
+  effectiveDate: string
+  paymentMethod?: PaymentMethod
   recurrence: Recurrence
-  overrides?: RecurrenceOverride[] // ajustes por ocorrência
-  /**
-   * Quando true, esta é a transação de "Gasto Diário" — única no sistema.
-   * Fica oculta no grid do calendário se for a única transação do dia,
-   * mas entra na conta quando há outras transações.
-   */
-  isDailyBudget?: boolean
+  overrides?: RecurrenceOverride[]
   createdAt: string
 }
 
@@ -61,7 +52,6 @@ export interface AccountSettings {
   currency: 'BRL'
 }
 
-// Estado do app
 export interface FinanceState {
   transactions: Transaction[]
   categories: Category[]
@@ -72,5 +62,19 @@ export interface FinanceState {
 export interface ExpandedTransaction extends Omit<Transaction, 'recurrence' | 'overrides'> {
   isRecurrence: boolean
   originalId?: string
-  occurrenceDate: string // data original desta ocorrência (antes de override de effectiveDate)
+  occurrenceDate: string
+  /** true = esta entrada é o gasto diário sintético */
+  isDailyBudget?: boolean
+}
+
+// Override de gasto diário por data
+export interface DailyBudgetOverride {
+  date: string   // ISO date
+  amount: number
+  notes?: string
+}
+
+// Configuração do gasto diário (salva no Firestore)
+export interface DailyBudgetSettings {
+  overrides: DailyBudgetOverride[]
 }

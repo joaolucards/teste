@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Transaction, Category, AccountSettings, RecurrenceOverride } from './types'
+import type { Transaction, Category, AccountSettings, RecurrenceOverride, DailyBudgetSettings, DailyBudgetOverride } from './types'
 import { DEFAULT_CATEGORIES, DEFAULT_SETTINGS } from './constants'
 import { generateId, toISODateString, parseISODate, addDays } from './utils'
 
@@ -31,6 +31,7 @@ function txDoc(uid: string, id: string) { return doc(db, 'users', uid, 'transact
 function catCol(uid: string)      { return collection(db, 'users', uid, 'categories') }
 function catDoc(uid: string, id: string) { return doc(db, 'users', uid, 'categories', id) }
 function settingsDoc(uid: string) { return doc(db, 'users', uid, 'settings', 'main') }
+function dailyBudgetDoc(uid: string) { return doc(db, 'users', uid, 'settings', 'dailyBudget') }
 
 // ─── Transactions ───────────────────────────────────────────────────
 
@@ -162,6 +163,32 @@ export async function addRecurrenceOverride(
   else overrides.push(override)
 
   await updateDoc(txDoc(uid, id), { overrides: stripUndefined(overrides) })
+}
+
+// ─── Daily Budget ────────────────────────────────────────────────────────────
+
+export function subscribeDailyBudget(
+  uid: string,
+  onChange: (settings: DailyBudgetSettings) => void
+): Unsubscribe {
+  return onSnapshot(dailyBudgetDoc(uid), snap => {
+    onChange(snap.exists() ? (snap.data() as DailyBudgetSettings) : { overrides: [] })
+  })
+}
+
+export async function saveDailyBudgetOverride(
+  uid: string,
+  override: DailyBudgetOverride
+): Promise<void> {
+  const snap = await getDoc(dailyBudgetDoc(uid))
+  const current: DailyBudgetSettings = snap.exists()
+    ? (snap.data() as DailyBudgetSettings)
+    : { overrides: [] }
+  const overrides = [...current.overrides]
+  const idx = overrides.findIndex(o => o.date === override.date)
+  if (idx !== -1) overrides[idx] = stripUndefined(override)
+  else overrides.push(stripUndefined(override))
+  await setDoc(dailyBudgetDoc(uid), { overrides })
 }
 
 // ─── Categories ─────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import { ForecastChart } from '@/components/dashboard/forecast-chart'
 import { CategoryBreakdown } from '@/components/dashboard/category-breakdown'
 import { RecentTransactions } from '@/components/dashboard/recent-transactions'
 import { DailyBudgetCard } from '@/components/dashboard/daily-budget-card'
-import { useTransactions, useCategories, useSettings, useBalance } from '@/lib/hooks/use-finance'
+import { useTransactions, useCategories, useSettings, useBalance, useDailyBudget } from '@/lib/hooks/use-finance'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import Link from 'next/link'
@@ -16,9 +16,11 @@ export default function DashboardPage() {
   const { transactions, isLoading: txLoading } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
+  const { settings: dailyBudgetSettings } = useDailyBudget()
   const { currentBalance, getForecast, getMonthSummary, getCategoryBreakdown, getDailyBudgetStats } = useBalance(
     transactions,
-    settings.initialBalance
+    settings.initialBalance,
+    dailyBudgetSettings,
   )
 
   const isLoading = txLoading || catLoading
