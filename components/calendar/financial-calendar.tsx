@@ -3,8 +3,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { toISODateString, formatCurrency } from '@/lib/utils'
 import type { Transaction, Category, ExpandedTransaction } from '@/lib/types'
@@ -33,7 +32,6 @@ export function FinancialCalendar({
   getBalanceForDate,
 }: FinancialCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
-  const [pickerOpen, setPickerOpen] = useState(false)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -90,34 +88,44 @@ export function FinancialCalendar({
     onDateSelect(now)
   }
 
-  // Called when user picks a month/year from the mini-calendar popover
-  const handlePickerSelect = (date: Date | undefined) => {
-    if (!date) return
-    setCurrentMonth(new Date(date.getFullYear(), date.getMonth(), 1))
-    setPickerOpen(false)
+  const currentYear = today.getFullYear()
+  const YEARS = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i)
+
+  const handleMonthChange = (value: string) => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), parseInt(value), 1))
+  }
+
+  const handleYearChange = (value: string) => {
+    setCurrentMonth(new Date(parseInt(value), currentMonth.getMonth(), 1))
   }
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        {/* Clickable month/year → opens date picker */}
-        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-          <PopoverTrigger asChild>
-            <button className="rounded-md px-2 py-1 text-lg font-semibold transition-colors hover:bg-muted">
-              {MONTHS[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              defaultMonth={currentMonth}
-              onMonthChange={(m) => setCurrentMonth(new Date(m.getFullYear(), m.getMonth(), 1))}
-              onSelect={handlePickerSelect}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        {/* Month + Year selects */}
+        <div className="flex items-center gap-2">
+          <Select value={String(currentMonth.getMonth())} onValueChange={handleMonthChange}>
+            <SelectTrigger className="h-8 w-[130px] text-sm font-semibold border-none shadow-none px-2 focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((name, idx) => (
+                <SelectItem key={idx} value={String(idx)}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(currentMonth.getFullYear())} onValueChange={handleYearChange}>
+            <SelectTrigger className="h-8 w-[80px] text-sm font-semibold border-none shadow-none px-2 focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((year) => (
+                <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={goToToday}>
