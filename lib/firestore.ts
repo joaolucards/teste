@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from './firebase'
-import type { Transaction, Category, AccountSettings, RecurrenceOverride, DailyBudgetSettings, DailyBudgetOverride } from './types'
+import type { Transaction, Category, AccountSettings, RecurrenceOverride, DailyBudgetSettings, DailyBudgetOverride, Vault, VaultTransaction } from './types'
 import { DEFAULT_CATEGORIES, DEFAULT_SETTINGS } from './constants'
 import { generateId, toISODateString, parseISODate, addDays } from './utils'
 
@@ -32,6 +32,10 @@ function catCol(uid: string)      { return collection(db, 'users', uid, 'categor
 function catDoc(uid: string, id: string) { return doc(db, 'users', uid, 'categories', id) }
 function settingsDoc(uid: string) { return doc(db, 'users', uid, 'settings', 'main') }
 function dailyBudgetDoc(uid: string) { return doc(db, 'users', uid, 'settings', 'dailyBudget') }
+function vaultCol(uid: string)        { return collection(db, 'users', uid, 'vaults') }
+function vaultDoc(uid: string, id: string) { return doc(db, 'users', uid, 'vaults', id) }
+function vtCol(uid: string, vid: string)   { return collection(db, 'users', uid, 'vaults', vid, 'transactions') }
+function vtDoc(uid: string, vid: string, tid: string) { return doc(db, 'users', uid, 'vaults', vid, 'transactions', tid) }
 
 // ─── Transactions ───────────────────────────────────────────────────
 
@@ -324,4 +328,50 @@ export async function clearAllData(uid: string): Promise<void> {
   catSnap.docs.forEach(d => batch.delete(d.ref))
   batch.delete(settingsDoc(uid))
   await batch.commit()
+}
+
+// ─── Vaults ──────────────────────────────────────────────────────────────────
+
+export function subscribeVaults(
+  uid: string,
+  onChange: (vaults: Vault[]) => void
+): Unsubscribe {
+  return onSnapshot(vaultCol(uid), snap => {
+    onChange(snap.docs.map(d => d.data() as Vault))
+  })
+}
+
+export async function addVault(uid: string, vault: Vault): Promise<void> {
+  await setDoc(vaultDoc(uid, vault.id), stripUndefined(vault))
+}
+
+export async function updateVault(uid: string, id: string, updates: Partial<Vault>): Promise<void> {
+  await updateDoc(vaultDoc(uid, id), updates as Record<string, unknown>)
+}
+
+export async function deleteVault(uid: string, id: string): Promise<void> {
+  // Delete all transactions first
+  const txSnap = await getDocs(vtCol(uid, id))
+  const batch = writeBatch(db)
+  txSnap.docs.forEach(d => batch.delete(d.ref))
+  batch.delete(vaultDoc(uid, id))
+  await batch.commit()
+}
+
+export function subscribeVaultTransactions(
+  uid: string,
+  vaultId: string,
+  onChange: (txs: VaultTransaction[]) => void
+): Unsubscribe {
+  return onSnapshot(vtCol(uid, vaultId), snap => {
+    onChange(snap.docs.map(d => d.data() as VaultTransaction))
+  })
+}
+
+export async function addVaultTransaction(uid: string, tx: VaultTransaction): Promise<void> {
+  await setDoc(vtDoc(uid, tx.vaultId, tx.id), stripUndefined(tx))
+}
+
+export async function deleteVaultTransaction(uid: string, vaultId: string, txId: string): Promise<void> {
+  await deleteDoc(vtDoc(uid, vaultId, txId))
 }

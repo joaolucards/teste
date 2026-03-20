@@ -78,3 +78,37 @@ export interface DailyBudgetOverride {
 export interface DailyBudgetSettings {
   overrides: DailyBudgetOverride[]
 }
+
+// ─── Cofrinhos (Vaults) ───────────────────────────────────────────────────────
+
+export interface Vault {
+  id: string
+  name: string
+  color: string
+  icon: string
+  goal?: number      // meta de valor (opcional)
+  createdAt: string
+}
+
+export type VaultTransactionType = 'deposit' | 'withdrawal'
+
+export interface VaultTransaction {
+  id: string
+  vaultId: string
+  type: VaultTransactionType
+  amount: number
+  title: string
+  notes?: string
+  date: string
+  effectiveDate: string
+  recurrence: Recurrence
+  overrides?: RecurrenceOverride[]
+  createdAt: string
+}
+
+// Vault transaction expandida (com recorrências)
+export interface ExpandedVaultTransaction extends Omit<VaultTransaction, 'recurrence' | 'overrides'> {
+  isRecurrence: boolean
+  originalId?: string
+  occurrenceDate: string
+}

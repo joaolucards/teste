@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import type { Transaction, Category, AccountSettings, ExpandedTransaction, RecurrenceOverride, DailyBudgetSettings, DailyBudgetOverride } from '../types'
+import type { Transaction, Category, AccountSettings, ExpandedTransaction, RecurrenceOverride, DailyBudgetSettings, DailyBudgetOverride, Vault, VaultTransaction, ExpandedVaultTransaction } from '../types'
 import * as fs from '../firestore'
 import { useAuth } from '@/components/auth/auth-provider'
 import { toISODateString, addDays, addMonths, parseISODate } from '../utils'
@@ -177,6 +177,126 @@ export function useCategories() {
 
   return { categories, incomeCategories, expenseCategories, isLoading, add, update, remove, getById }
 }
+// ─── Vaults ───────────────────────────────────────────────────────────────────
+
+function expandVaultTransactions(
+  txs: VaultTransaction[],
+  startDate: Date,
+  endDate: Date,
+): ExpandedVaultTransaction[] {
+  const expanded: ExpandedVaultTransaction[] = []
+  for (const tx of txs) {
+    const baseDate = parseISODate(tx.effectiveDate)
+    if (tx.recurrence.type === 'none') {
+      if (baseDate >= startDate && baseDate <= endDate)
+        expanded.push({ ...tx, occurrenceDate: tx.effectiveDate, isRecurrence: false })
+      continue
+    }
+    const recurrenceEnd = tx.recurrence.endDate ? parseISODate(tx.recurrence.endDate) : endDate
+    let n = 0
+    while (true) {
+      const occurrence = getNthOccurrence(baseDate, tx as unknown as Transaction, n)
+      if (occurrence > endDate || occurrence > recurrenceEnd) break
+      const dateStr = toISODateString(occurrence)
+      const override = tx.overrides?.find(o => o.date === dateStr)
+      if (!override?.skip && occurrence >= startDate) {
+        expanded.push({
+          ...tx,
+          amount: override?.amount ?? tx.amount,
+          id: n === 0 ? tx.id : `${tx.id}-${dateStr}`,
+          date: dateStr,
+          effectiveDate: dateStr,
+          occurrenceDate: dateStr,
+          isRecurrence: n !== 0,
+          originalId: n !== 0 ? tx.id : undefined,
+        })
+      }
+      n++
+    }
+  }
+  return expanded.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+}
+
+export function useVaults() {
+  const { user } = useAuth()
+  const [vaults, setVaults] = useState<Vault[]>([])
+  const [vaultTransactions, setVaultTransactions] = useState<Record<string, VaultTransaction[]>>({})
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) { setVaults([]); setVaultTransactions({}); setIsLoading(false); return }
+    setIsLoading(true)
+    const unsubs: (() => void)[] = []
+    const vaultUnsub = fs.subscribeVaults(user.uid, (v) => {
+      setVaults(v)
+      setIsLoading(false)
+      v.forEach(vault => {
+        const txUnsub = fs.subscribeVaultTransactions(user.uid, vault.id, (txs) => {
+          setVaultTransactions(prev => ({ ...prev, [vault.id]: txs }))
+        })
+        unsubs.push(txUnsub)
+      })
+    })
+    unsubs.push(vaultUnsub)
+    return () => unsubs.forEach(u => u())
+  }, [user])
+
+  const addVault = useCallback(async (vault: Vault) => {
+    if (!user) return
+    try { await fs.addVault(user.uid, vault) }
+    catch (err) { console.error(err); toast.error('Erro ao criar cofrinho.') }
+  }, [user])
+
+  const updateVault = useCallback(async (id: string, updates: Partial<Vault>) => {
+    if (!user) return
+    try { await fs.updateVault(user.uid, id, updates) }
+    catch (err) { console.error(err); toast.error('Erro ao atualizar cofrinho.') }
+  }, [user])
+
+  const removeVault = useCallback(async (id: string) => {
+    if (!user) return
+    try { await fs.deleteVault(user.uid, id) }
+    catch (err) { console.error(err); toast.error('Erro ao excluir cofrinho.') }
+  }, [user])
+
+  const addVaultTransaction = useCallback(async (tx: VaultTransaction) => {
+    if (!user) return
+    try { await fs.addVaultTransaction(user.uid, tx) }
+    catch (err) { console.error(err); toast.error('Erro ao registrar movimentação.') }
+  }, [user])
+
+  const removeVaultTransaction = useCallback(async (vaultId: string, txId: string) => {
+    if (!user) return
+    try { await fs.deleteVaultTransaction(user.uid, vaultId, txId) }
+    catch (err) { console.error(err); toast.error('Erro ao remover movimentação.') }
+  }, [user])
+
+  const getVaultBalances = useCallback((): Record<string, number> => {
+    const today = new Date()
+    const farPast = new Date(2000, 0, 1)
+    const balances: Record<string, number> = {}
+    for (const vault of vaults) {
+      const txs = vaultTransactions[vault.id] ?? []
+      const expanded = expandVaultTransactions(txs, farPast, today)
+      balances[vault.id] = expanded.reduce((sum, tx) =>
+        tx.type === 'deposit' ? sum + tx.amount : sum - tx.amount, 0)
+    }
+    return balances
+  }, [vaults, vaultTransactions])
+
+  const getTotalVaulted = useCallback((): number => {
+    const balances = getVaultBalances()
+    return Object.values(balances).reduce((s, b) => s + Math.max(0, b), 0)
+  }, [getVaultBalances])
+
+  return {
+    vaults, vaultTransactions, isLoading,
+    addVault, updateVault, removeVault,
+    addVaultTransaction, removeVaultTransaction,
+    getVaultBalances, getTotalVaulted,
+  }
+}
+
 
 // ─── Settings ─────────────────────────────────────────────────────
 
@@ -272,6 +392,7 @@ export function useBalance(
   transactions: Transaction[],
   initialBalance: number,
   dailyBudgetSettings?: DailyBudgetSettings,
+  totalVaulted = 0,
 ) {
   const currentBalance = useMemo(() => {
     const today = toISODateString(new Date())
@@ -300,8 +421,8 @@ export function useBalance(
         }
       }
     }
-    return txBalance - overrideTotal - defaultTotal
-  }, [transactions, initialBalance, dailyBudgetSettings])
+    return txBalance - overrideTotal - defaultTotal - totalVaulted
+  }, [transactions, initialBalance, dailyBudgetSettings, totalVaulted])
 
   const getForecast = useCallback((days = 30) => {
     const today   = new Date()

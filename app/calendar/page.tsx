@@ -7,7 +7,7 @@ import { FinancialCalendar } from '@/components/calendar/financial-calendar'
 import { DayDetails } from '@/components/calendar/day-details'
 import { TransactionForm, type SaveScopeInfo } from '@/components/transactions/transaction-form'
 import { DailyBudgetForm } from '@/components/transactions/daily-budget-form'
-import { useTransactions, useCategories, useSettings, useBalance, useDailyBudget, DAILY_BUDGET_ID } from '@/lib/hooks/use-finance'
+import { useTransactions, useCategories, useSettings, useBalance, useVaults, useDailyBudget, DAILY_BUDGET_ID } from '@/lib/hooks/use-finance'
 import type { Transaction, DailyBudgetOverride } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -18,11 +18,13 @@ export default function CalendarPage() {
   } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
+  const { getTotalVaulted } = useVaults()
   const { settings: dailyBudgetSettings, saveOverride: saveDailyBudgetOverride, saveDefault: saveDailyBudgetDefault } = useDailyBudget()
   const { getTransactionsForDate, getBalanceForDate } = useBalance(
     transactions,
     settings.initialBalance,
     dailyBudgetSettings,
+    getTotalVaulted(),
   )
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
