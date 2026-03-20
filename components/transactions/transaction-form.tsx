@@ -34,6 +34,8 @@ interface TransactionFormProps {
   defaultType?: 'income' | 'expense'
   /** Data da ocorrência específica que está sendo editada (vinda do calendário) */
   occurrenceDate?: string
+  /** Já existe uma transação de Gasto Diário — impede criar uma segunda */
+  hasDailyBudget?: boolean
 }
 
 export function TransactionForm({
@@ -45,6 +47,7 @@ export function TransactionForm({
   defaultDate,
   defaultType = 'expense',
   occurrenceDate,
+  hasDailyBudget = false,
 }: TransactionFormProps) {
   const [type, setType] = useState<'income' | 'expense'>(transaction?.type || defaultType)
   const [amount, setAmount] = useState(transaction?.amount || 0)
@@ -71,6 +74,10 @@ export function TransactionForm({
   )
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(
     transaction?.recurrence.endDate ? new Date(transaction.recurrence.endDate) : undefined
+  )
+
+  const [isDailyBudget, setIsDailyBudget] = useState(
+    transaction?.isDailyBudget ?? false
   )
 
   // Estado do seletor de escopo (aparece ao salvar uma transação recorrente em edição)
@@ -160,6 +167,7 @@ export function TransactionForm({
         }
       : { type: 'none' },
     overrides: transaction?.overrides ?? [],
+    isDailyBudget: isDailyBudget || undefined,
     createdAt: transaction?.createdAt || new Date().toISOString(),
   })
 
@@ -222,27 +230,80 @@ export function TransactionForm({
           <>
             <SheetHeader>
               <SheetTitle>
-                {isEditing ? 'Editar Transação' : 'Nova Transação'}
+                {isDailyBudget
+                  ? 'Gasto Diário'
+                  : isEditing ? 'Editar Transação' : 'Nova Transação'}
               </SheetTitle>
               <SheetDescription>
-                {isEditing
-                  ? 'Altere os dados da transação'
-                  : 'Registre uma nova receita ou despesa'
+                {isDailyBudget
+                  ? 'Registre o custo médio do seu dia a dia'
+                  : isEditing
+                    ? 'Altere os dados da transação'
+                    : 'Registre uma nova receita ou despesa'
                 }
               </SheetDescription>
             </SheetHeader>
 
             <div className="mt-6 space-y-6">
-              <Tabs value={type} onValueChange={(v) => setType(v as 'income' | 'expense')}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="expense" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
-                    Despesa
-                  </TabsTrigger>
-                  <TabsTrigger value="income" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-                    Receita
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {/* Toggle Gasto Diário — só aparece em nova transação ou ao editar o próprio gasto diário */}
+              {(!isEditing || transaction?.isDailyBudget) && !hasDailyBudget && (
+                <div
+                  className={cn(
+                    "flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors",
+                    isDailyBudget
+                      ? "border-orange-400 bg-orange-50 dark:bg-orange-950/30"
+                      : "hover:bg-muted/50"
+                  )}
+                  onClick={() => {
+                    const next = !isDailyBudget
+                    setIsDailyBudget(next)
+                    if (next) {
+                      setType('expense')
+                      setIsRecurring(true)
+                      setRecurrenceType('daily')
+                    }
+                  }}
+                >
+                  <div>
+                    <p className="text-sm font-medium">Gasto Diário</p>
+                    <p className="text-xs text-muted-foreground">
+                      Aparece todo dia no detalhe, mas não polui o calendário quando for a única transação do dia
+                    </p>
+                  </div>
+                  <Switch
+                    checked={isDailyBudget}
+                    onCheckedChange={(checked) => {
+                      setIsDailyBudget(checked)
+                      if (checked) {
+                        setType('expense')
+                        setIsRecurring(true)
+                        setRecurrenceType('daily')
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Quando já existe um gasto diário e estamos criando outro, avisa */}
+              {!isEditing && hasDailyBudget && (
+                <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-orange-700 dark:border-orange-900 dark:bg-orange-950/30 dark:text-orange-300">
+                  Você já possui um Gasto Diário cadastrado. Edite-o diretamente pelo calendário ou pela lista de transações.
+                </div>
+              )}
+
+              {/* Type tabs — oculto quando isDailyBudget */}
+              {!isDailyBudget && (
+                <Tabs value={type} onValueChange={(v) => setType(v as 'income' | 'expense')}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="expense" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                      Despesa
+                    </TabsTrigger>
+                    <TabsTrigger value="income" className="data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+                      Receita
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
 
               <Field>
                 <FieldLabel>Valor</FieldLabel>
@@ -300,7 +361,7 @@ export function TransactionForm({
                 <DatePicker date={date} onSelect={setDate} />
               </Field>
 
-              {type === 'expense' && (
+              {type === 'expense' && !isDailyBudget && (
                 <Field>
                   <FieldLabel>Forma de Pagamento</FieldLabel>
                   <div className="grid grid-cols-2 gap-2">
@@ -334,7 +395,7 @@ export function TransactionForm({
                 </Field>
               )}
 
-              {type === 'expense' && paymentMethod === 'credit' && (
+              {type === 'expense' && paymentMethod === 'credit' && !isDailyBudget && (
                 <Field>
                   <FieldLabel>Data do Débito (Fatura)</FieldLabel>
                   <DatePicker
@@ -348,6 +409,7 @@ export function TransactionForm({
                 </Field>
               )}
 
+              {!isDailyBudget && (
               <div className="rounded-lg border p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -405,6 +467,7 @@ export function TransactionForm({
                   </>
                 )}
               </div>
+              )}
             </div>
 
             <SheetFooter className="mt-6">

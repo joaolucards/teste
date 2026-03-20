@@ -22,6 +22,8 @@ export default function CalendarPage() {
     settings.initialBalance
   )
 
+  const hasDailyBudget = transactions.some(tx => tx.isDailyBudget)
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date())
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>()
@@ -144,6 +146,7 @@ export default function CalendarPage() {
         categories={categories}
         defaultDate={selectedDate || undefined}
         occurrenceDate={editingOccurrenceDate}
+        hasDailyBudget={hasDailyBudget && !editingTransaction?.isDailyBudget}
       />
     </>
   )

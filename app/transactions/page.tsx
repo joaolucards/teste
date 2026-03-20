@@ -93,6 +93,8 @@ function TransactionsContent() {
     }
   }
 
+  const hasDailyBudget = transactions.some(tx => tx.isDailyBudget)
+
   const handleNewTransaction = () => {
     setEditingTransaction(undefined)
     setIsFormOpen(true)
@@ -304,6 +306,7 @@ function TransactionsContent() {
         onSave={handleSave}
         transaction={editingTransaction}
         categories={categories}
+        hasDailyBudget={hasDailyBudget && !editingTransaction?.isDailyBudget}
       />
 
       <AlertDialog open={!!deleteTransaction} onOpenChange={() => setDeleteTransaction(undefined)}>
