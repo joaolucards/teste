@@ -60,6 +60,18 @@ function TransactionsContent() {
           effectiveDate: transaction.effectiveDate,
           paymentMethod: transaction.paymentMethod,
         })
+      } else if (scopeInfo?.type === 'stop-from-date') {
+        // Define a data final da recorrência como o dia anterior à data escolhida,
+        // encerrando a série sem afetar as ocorrências já existentes
+        const stopDate = new Date(scopeInfo.date)
+        stopDate.setDate(stopDate.getDate() - 1)
+        const endDate = stopDate.toISOString().split('T')[0]
+        update(transaction.id, {
+          recurrence: {
+            ...editingTransaction.recurrence,
+            endDate,
+          },
+        })
       } else {
         update(transaction.id, transaction)
       }
