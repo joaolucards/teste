@@ -65,6 +65,11 @@ export interface ExpandedTransaction extends Omit<Transaction, 'recurrence' | 'o
   occurrenceDate: string
   /** true = esta entrada é o gasto diário sintético */
   isDailyBudget?: boolean
+  /** true = esta entrada representa uma movimentação de cofrinho */
+  isVaultEntry?: boolean
+  vaultId?: string
+  vaultTxId?: string
+  vaultTxType?: 'deposit' | 'withdrawal'
 }
 
 // Override de gasto diário por data

@@ -21,6 +21,8 @@ interface VaultTransactionFormProps {
   vaults: Vault[]
   defaultVaultId?: string
   defaultType?: VaultTransactionType
+  /** Pass existing transaction to edit mode */
+  editingTransaction?: VaultTransaction
   onSave: (tx: VaultTransaction) => void
 }
 
@@ -30,6 +32,7 @@ export function VaultTransactionForm({
   vaults,
   defaultVaultId,
   defaultType = 'deposit',
+  editingTransaction,
   onSave,
 }: VaultTransactionFormProps) {
   const [type, setType] = useState<VaultTransactionType>(defaultType)
@@ -42,25 +45,39 @@ export function VaultTransactionForm({
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>('monthly')
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>()
 
+  const isEditing = !!editingTransaction
+
   useEffect(() => {
     if (open) {
-      setType(defaultType)
-      setVaultId(defaultVaultId || vaults[0]?.id || '')
-      setAmount(0)
-      setTitle('')
-      setNotes('')
-      setDate(new Date())
-      setIsRecurring(false)
-      setRecurrenceType('monthly')
-      setRecurrenceEndDate(undefined)
+      if (editingTransaction) {
+        setType(editingTransaction.type)
+        setVaultId(editingTransaction.vaultId)
+        setAmount(editingTransaction.amount)
+        setTitle(editingTransaction.title)
+        setNotes(editingTransaction.notes || '')
+        setDate(new Date(editingTransaction.date))
+        setIsRecurring(editingTransaction.recurrence.type !== 'none')
+        setRecurrenceType(editingTransaction.recurrence.type === 'none' ? 'monthly' : editingTransaction.recurrence.type)
+        setRecurrenceEndDate(editingTransaction.recurrence.endDate ? new Date(editingTransaction.recurrence.endDate) : undefined)
+      } else {
+        setType(defaultType)
+        setVaultId(defaultVaultId || vaults[0]?.id || '')
+        setAmount(0)
+        setTitle('')
+        setNotes('')
+        setDate(new Date())
+        setIsRecurring(false)
+        setRecurrenceType('monthly')
+        setRecurrenceEndDate(undefined)
+      }
     }
-  }, [open, defaultType, defaultVaultId, vaults])
+  }, [open, defaultType, defaultVaultId, vaults, editingTransaction])
 
   function handleSave() {
     if (!amount || !vaultId || !date) return
     const dateStr = toISODateString(date)
     const tx: VaultTransaction = {
-      id: generateId(),
+      id: editingTransaction?.id || generateId(),
       vaultId,
       type,
       amount,
@@ -75,7 +92,7 @@ export function VaultTransactionForm({
           }
         : { type: 'none' },
       overrides: [],
-      createdAt: new Date().toISOString(),
+      createdAt: editingTransaction?.createdAt || new Date().toISOString(),
     }
     onSave(tx)
     onOpenChange(false)
@@ -85,8 +102,8 @@ export function VaultTransactionForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="overflow-y-auto px-6">
         <SheetHeader>
-          <SheetTitle>Movimentação de Cofrinho</SheetTitle>
-          <SheetDescription>Depositar ou resgatar de um cofrinho</SheetDescription>
+          <SheetTitle>{isEditing ? 'Editar Movimentação' : 'Movimentação de Cofrinho'}</SheetTitle>
+          <SheetDescription>{isEditing ? 'Altere os dados desta movimentação' : 'Depositar ou resgatar de um cofrinho'}</SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
@@ -201,7 +218,7 @@ export function VaultTransactionForm({
               type === 'withdrawal' && 'bg-amber-500 hover:bg-amber-600',
             )}
           >
-            {type === 'deposit' ? 'Guardar' : 'Resgatar'}
+            {isEditing ? 'Salvar' : type === 'deposit' ? 'Guardar' : 'Resgatar'}
           </Button>
         </SheetFooter>
       </SheetContent>

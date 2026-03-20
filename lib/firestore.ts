@@ -372,6 +372,13 @@ export async function addVaultTransaction(uid: string, tx: VaultTransaction): Pr
   await setDoc(vtDoc(uid, tx.vaultId, tx.id), stripUndefined(tx))
 }
 
+export async function updateVaultTransaction(uid: string, vaultId: string, txId: string, updates: Partial<VaultTransaction>): Promise<void> {
+  const snap = await getDoc(vtDoc(uid, vaultId, txId))
+  if (!snap.exists()) return
+  const current = snap.data() as VaultTransaction
+  await setDoc(vtDoc(uid, vaultId, txId), stripUndefined({ ...current, ...updates }))
+}
+
 export async function deleteVaultTransaction(uid: string, vaultId: string, txId: string): Promise<void> {
   await deleteDoc(vtDoc(uid, vaultId, txId))
 }

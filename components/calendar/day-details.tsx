@@ -43,6 +43,7 @@ interface DayDetailsProps {
   onAddTransaction: () => void
   onEditTransaction: (transactionId: string, occurrenceDate?: string) => void
   onEditDailyBudget: () => void
+  onEditVaultTransaction: (vaultId: string, vaultTxId: string) => void
   onDeleteTransaction: (
     transactionId: string,
     scope: DeleteScope,
@@ -58,6 +59,7 @@ export function DayDetails({
   onAddTransaction,
   onEditTransaction,
   onEditDailyBudget,
+  onEditVaultTransaction,
   onDeleteTransaction,
 }: DayDetailsProps) {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
@@ -67,7 +69,8 @@ export function DayDetails({
 
   // Split daily budget from regular transactions
   const dailyBudgetTx = transactions.find(tx => tx.isDailyBudget)
-  const regularTxs = transactions.filter(tx => !tx.isDailyBudget)
+  const vaultEntries = transactions.filter(tx => tx.isVaultEntry)
+  const regularTxs = transactions.filter(tx => !tx.isDailyBudget && !tx.isVaultEntry)
 
   const income = regularTxs
     .filter(tx => tx.type === 'income')
@@ -268,6 +271,33 @@ export function DayDetails({
                   {dailyBudgetTx.amount > 0 ? `-${formatCurrency(dailyBudgetTx.amount)}` : '—'}
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Vault entries section */}
+          {vaultEntries.length > 0 && (
+            <div className="rounded-lg border border-dashed border-blue-200 dark:border-blue-900 p-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Cofrinhos
+              </p>
+              {vaultEntries.map(tx => (
+                <div key={tx.id} className="flex items-center justify-between">
+                  <button
+                    className="flex items-center gap-2 text-left hover:opacity-70 transition-opacity"
+                    onClick={() => tx.vaultId && tx.vaultTxId && onEditVaultTransaction(tx.vaultId, tx.vaultTxId)}
+                  >
+                    <span className="text-sm">{tx.title}</span>
+                  </button>
+                  <span className={cn(
+                    'text-sm font-semibold shrink-0 ml-2',
+                    tx.vaultTxType === 'deposit'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  )}>
+                    {tx.vaultTxType === 'deposit' ? '-' : '+'}{formatCurrency(tx.amount)}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
 

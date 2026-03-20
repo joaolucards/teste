@@ -11,7 +11,7 @@ import { CategoryIcon } from '@/components/shared/category-icon'
 import { useVaults } from '@/lib/hooks/use-finance'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { Plus, Pencil, Trash2, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
-import type { Vault } from '@/lib/types'
+import type { Vault, VaultTransaction } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -23,7 +23,7 @@ export default function VaultsPage() {
   const {
     vaults, vaultTransactions, isLoading,
     addVault, updateVault, removeVault,
-    addVaultTransaction, getVaultBalances,
+    addVaultTransaction, updateVaultTransaction, removeVaultTransaction, getVaultBalances,
   } = useVaults()
 
   const [isVaultFormOpen, setIsVaultFormOpen] = useState(false)
@@ -32,11 +32,18 @@ export default function VaultsPage() {
   const [deletingVault, setDeletingVault] = useState<Vault | undefined>()
   const [selectedVaultId, setSelectedVaultId] = useState<string | undefined>()
   const [defaultTxType, setDefaultTxType] = useState<'deposit' | 'withdrawal'>('deposit')
+  const [editingVaultTx, setEditingVaultTx] = useState<VaultTransaction | undefined>()
 
   const balances = getVaultBalances()
   const totalVaulted = Object.values(balances).reduce((s, b) => s + Math.max(0, b), 0)
 
+  function handleEditTx(tx: VaultTransaction) {
+    setEditingVaultTx(tx)
+    setIsTxFormOpen(true)
+  }
+
   function handleOpenTx(vaultId: string, type: 'deposit' | 'withdrawal') {
+    setEditingVaultTx(undefined)
     setSelectedVaultId(vaultId)
     setDefaultTxType(type)
     setIsTxFormOpen(true)
@@ -191,23 +198,31 @@ export default function VaultsPage() {
                           Últimas movimentações
                         </p>
                         {recentTxs.map(tx => (
-                          <div key={tx.id} className="flex items-center justify-between text-sm">
+                          <div key={tx.id} className="group flex items-center justify-between text-sm">
                             <div className="flex items-center gap-1.5 min-w-0">
                               {tx.type === 'deposit'
                                 ? <ArrowDownLeft className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                                 : <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-amber-500" />}
                               <span className="truncate text-xs">{tx.title}</span>
                             </div>
-                            <div className="text-right shrink-0 ml-2">
-                              <span className={cn(
-                                'text-xs font-medium',
-                                tx.type === 'deposit'
-                                  ? 'text-blue-600 dark:text-blue-400'
-                                  : 'text-amber-600 dark:text-amber-400'
-                              )}>
-                                {tx.type === 'deposit' ? '+' : '-'}{formatCurrency(tx.amount)}
-                              </span>
-                              <p className="text-[10px] text-muted-foreground">{formatDate(tx.date)}</p>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              <div className="text-right">
+                                <span className={cn(
+                                  'text-xs font-medium',
+                                  tx.type === 'deposit'
+                                    ? 'text-blue-600 dark:text-blue-400'
+                                    : 'text-amber-600 dark:text-amber-400'
+                                )}>
+                                  {tx.type === 'deposit' ? '+' : '-'}{formatCurrency(tx.amount)}
+                                </span>
+                                <p className="text-[10px] text-muted-foreground">{formatDate(tx.date)}</p>
+                              </div>
+                              <button
+                                onClick={() => handleEditTx(tx)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -230,11 +245,19 @@ export default function VaultsPage() {
 
       <VaultTransactionForm
         open={isTxFormOpen}
-        onOpenChange={setIsTxFormOpen}
+        onOpenChange={(v) => { if (!v) setEditingVaultTx(undefined); setIsTxFormOpen(v) }}
         vaults={vaults}
         defaultVaultId={selectedVaultId}
         defaultType={defaultTxType}
-        onSave={addVaultTransaction}
+        editingTransaction={editingVaultTx}
+        onSave={(tx) => {
+          if (editingVaultTx) {
+            updateVaultTransaction(tx.vaultId, tx.id, tx)
+          } else {
+            addVaultTransaction(tx)
+          }
+          setEditingVaultTx(undefined)
+        }}
       />
 
       <AlertDialog open={!!deletingVault} onOpenChange={o => { if (!o) setDeletingVault(undefined) }}>

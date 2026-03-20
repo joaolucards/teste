@@ -265,6 +265,12 @@ export function useVaults() {
     catch (err) { console.error(err); toast.error('Erro ao registrar movimentação.') }
   }, [user])
 
+  const updateVaultTransaction = useCallback(async (vaultId: string, txId: string, updates: Partial<VaultTransaction>) => {
+    if (!user) return
+    try { await fs.updateVaultTransaction(user.uid, vaultId, txId, updates) }
+    catch (err) { console.error(err); toast.error('Erro ao atualizar movimentação.') }
+  }, [user])
+
   const removeVaultTransaction = useCallback(async (vaultId: string, txId: string) => {
     if (!user) return
     try { await fs.deleteVaultTransaction(user.uid, vaultId, txId) }
@@ -292,7 +298,7 @@ export function useVaults() {
   return {
     vaults, vaultTransactions, isLoading,
     addVault, updateVault, removeVault,
-    addVaultTransaction, removeVaultTransaction,
+    addVaultTransaction, updateVaultTransaction, removeVaultTransaction,
     getVaultBalances, getTotalVaulted,
   }
 }
@@ -393,6 +399,7 @@ export function useBalance(
   initialBalance: number,
   dailyBudgetSettings?: DailyBudgetSettings,
   totalVaulted = 0,
+  vaultData?: { vaults: Vault[]; vaultTransactions: Record<string, VaultTransaction[]> },
 ) {
   const currentBalance = useMemo(() => {
     const today = toISODateString(new Date())
@@ -484,8 +491,76 @@ export function useBalance(
       createdAt: '',
     }
 
-    return [...regular, dailyEntry]
-  }, [transactions, dailyBudgetSettings])
+    // Inject expanded vault transactions for this date
+    const vaultEntries: ExpandedTransaction[] = []
+    if (vaultData) {
+      for (const vault of vaultData.vaults) {
+        const vtxs = vaultData.vaultTransactions[vault.id] ?? []
+        const expanded = vtxs.flatMap(tx => {
+          const base = parseISODate(tx.effectiveDate)
+          if (tx.recurrence.type === 'none') {
+            if (tx.effectiveDate === dateStr) {
+              return [{
+                id: tx.id,
+                originalId: tx.id,
+                type: 'expense' as const,
+                amount: tx.type === 'deposit' ? tx.amount : -tx.amount,
+                categoryId: '',
+                title: `${tx.type === 'deposit' ? '↓' : '↑'} ${vault.name}: ${tx.title}`,
+                notes: tx.notes,
+                date: dateStr,
+                effectiveDate: dateStr,
+                occurrenceDate: dateStr,
+                isRecurrence: false,
+                isVaultEntry: true,
+                vaultId: vault.id,
+                vaultTxId: tx.id,
+                vaultTxType: tx.type,
+                createdAt: tx.createdAt,
+              }]
+            }
+            return []
+          }
+          // Recurring: find if this date is an occurrence
+          const recurrenceEnd = tx.recurrence.endDate ? parseISODate(tx.recurrence.endDate) : new Date(2100, 0, 1)
+          let n = 0
+          while (true) {
+            const occ = getNthOccurrence(base, tx as unknown as Transaction, n)
+            if (toISODateString(occ) === dateStr) {
+              const override = tx.overrides?.find(o => o.date === dateStr)
+              if (!override?.skip) {
+                return [{
+                  id: n === 0 ? tx.id : `${tx.id}-${dateStr}`,
+                  originalId: tx.id,
+                  type: 'expense' as const,
+                  amount: override?.amount ?? (tx.type === 'deposit' ? tx.amount : -tx.amount),
+                  categoryId: '',
+                  title: `${tx.type === 'deposit' ? '↓' : '↑'} ${vault.name}: ${tx.title}`,
+                  notes: tx.notes,
+                  date: dateStr,
+                  effectiveDate: dateStr,
+                  occurrenceDate: dateStr,
+                  isRecurrence: n !== 0,
+                  isVaultEntry: true,
+                  vaultId: vault.id,
+                  vaultTxId: tx.id,
+                  vaultTxType: tx.type,
+                  createdAt: tx.createdAt,
+                }]
+              }
+              break
+            }
+            if (occ > new Date(dateStr + 'T23:59:59') || occ > recurrenceEnd) break
+            n++
+          }
+          return []
+        })
+        vaultEntries.push(...expanded)
+      }
+    }
+
+    return [...regular, dailyEntry, ...vaultEntries]
+  }, [transactions, dailyBudgetSettings, vaultData])
 
   const getBalanceForDate = useCallback((targetDate: Date) => {
     const today  = new Date(); today.setHours(0, 0, 0, 0)
