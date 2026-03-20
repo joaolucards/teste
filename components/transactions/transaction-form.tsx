@@ -13,10 +13,10 @@ import { DatePicker } from '@/components/shared/date-picker'
 import { CategoryIcon } from '@/components/shared/category-icon'
 import type { Transaction, Category, PaymentMethod, RecurrenceType } from '@/lib/types'
 import { generateId, toISODateString, parseISODate } from '@/lib/utils'
-import { CreditCard, Banknote, Repeat, ChevronLeft, CalendarDays, Calendar, Layers } from 'lucide-react'
+import { CreditCard, Banknote, Repeat, ChevronLeft, CalendarDays, Calendar, Layers, StopCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type EditScope = 'all' | 'from-date' | 'this-only'
+export type EditScope = 'all' | 'from-date' | 'this-only' | 'stop-from-date'
 
 export interface SaveScopeInfo {
   type: EditScope
@@ -496,6 +496,35 @@ export function TransactionForm({
                   )}
                 </div>
               </button>
+
+              {/* Opção: Encerrar recorrência a partir de uma data */}
+              <button
+                type="button"
+                onClick={() => setEditScope('stop-from-date')}
+                className={cn(
+                  "w-full flex items-start gap-4 rounded-lg border p-4 text-left transition-colors",
+                  editScope === 'stop-from-date'
+                    ? "border-destructive bg-destructive/5"
+                    : "border-border hover:border-destructive/50"
+                )}
+              >
+                <StopCircle className={cn("mt-0.5 h-5 w-5 shrink-0", editScope === 'stop-from-date' ? "text-destructive" : "text-muted-foreground")} />
+                <div className="flex-1">
+                  <p className="font-medium">Encerrar recorrência a partir de uma data</p>
+                  <p className="text-sm text-muted-foreground">
+                    Para de repetir a partir do mês escolhido, mantendo as ocorrências anteriores
+                  </p>
+                  {editScope === 'stop-from-date' && (
+                    <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                      <DatePicker
+                        date={scopeDate}
+                        onSelect={setScopeDate}
+                        placeholder="Encerrar a partir de quando?"
+                      />
+                    </div>
+                  )}
+                </div>
+              </button>
             </div>
 
             <SheetFooter className="mt-6">
@@ -508,6 +537,7 @@ export function TransactionForm({
                 disabled={
                   (editScope !== 'all' && !scopeDate)
                 }
+
               >
                 Confirmar
               </Button>
