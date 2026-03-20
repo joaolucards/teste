@@ -104,6 +104,48 @@ export async function splitTransactionFromDate(
   await batch.commit()
 }
 
+/**
+ * Exclui uma transação recorrente de acordo com o escopo escolhido pelo usuário.
+ *
+ * - 'all'       → exclui o documento inteiro (todas as ocorrências)
+ * - 'this-only' → marca a ocorrência como skip via override
+ * - 'from-date' → encerra a série no dia anterior a occurrenceDate
+ */
+export async function deleteRecurrenceScope(
+  uid: string,
+  id: string,
+  scope: 'all' | 'this-only' | 'from-date',
+  occurrenceDate: string,
+): Promise<void> {
+  if (scope === 'all') {
+    await deleteDoc(txDoc(uid, id))
+    return
+  }
+
+  const snap = await getDoc(txDoc(uid, id))
+  if (!snap.exists()) return
+  const tx = snap.data() as Transaction
+
+  if (scope === 'this-only') {
+    const overrides = [...(tx.overrides ?? [])]
+    const idx = overrides.findIndex(o => o.date === occurrenceDate)
+    const skipOverride: RecurrenceOverride = { date: occurrenceDate, skip: true }
+    if (idx !== -1) overrides[idx] = skipOverride
+    else overrides.push(skipOverride)
+    await updateDoc(txDoc(uid, id), { overrides: stripUndefined(overrides) })
+    return
+  }
+
+  // 'from-date': encerra a série no dia anterior à ocorrência selecionada
+  if (scope === 'from-date') {
+    const fromDateObj = parseISODate(occurrenceDate)
+    const newEndDate = toISODateString(addDays(fromDateObj, -1))
+    await updateDoc(txDoc(uid, id), {
+      recurrence: stripUndefined({ ...tx.recurrence, endDate: newEndDate }),
+    })
+  }
+}
+
 export async function addRecurrenceOverride(
   uid: string,
   id: string,

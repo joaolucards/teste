@@ -11,7 +11,10 @@ import type { Transaction } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export default function CalendarPage() {
-  const { transactions, isLoading: txLoading, add, update, splitFromDate, addOverride } = useTransactions()
+  const {
+    transactions, isLoading: txLoading,
+    add, update, splitFromDate, addOverride, removeRecurrence,
+  } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
   const { getTransactionsForDate, getBalanceForDate } = useBalance(
@@ -43,6 +46,14 @@ export default function CalendarPage() {
       setEditingOccurrenceDate(occurrenceDate)
       setIsFormOpen(true)
     }
+  }
+
+  const handleDeleteTransaction = (
+    transactionId: string,
+    scope: 'all' | 'this-only' | 'from-date',
+    occurrenceDate: string,
+  ) => {
+    removeRecurrence(transactionId, scope, occurrenceDate)
   }
 
   const handleSaveTransaction = (transaction: Transaction, scopeInfo?: SaveScopeInfo) => {
@@ -119,6 +130,7 @@ export default function CalendarPage() {
               balance={selectedDateBalance}
               onAddTransaction={handleAddTransaction}
               onEditTransaction={handleEditTransaction}
+              onDeleteTransaction={handleDeleteTransaction}
             />
           )}
         </div>

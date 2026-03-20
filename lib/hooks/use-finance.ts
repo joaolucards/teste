@@ -77,7 +77,21 @@ export function useTransactions() {
     }
   }, [user])
 
-  return { transactions, isLoading, add, update, remove, splitFromDate, addOverride }
+  const removeRecurrence = useCallback(async (
+    id: string,
+    scope: 'all' | 'this-only' | 'from-date',
+    occurrenceDate: string,
+  ) => {
+    if (!user) return
+    try {
+      await fs.deleteRecurrenceScope(user.uid, id, scope, occurrenceDate)
+    } catch (err) {
+      console.error('Erro ao remover recorrência:', err)
+      toast.error('Erro ao remover. Tente novamente.')
+    }
+  }, [user])
+
+  return { transactions, isLoading, add, update, remove, splitFromDate, addOverride, removeRecurrence }
 }
 
 // ─── Categories ───────────────────────────────────────────────────
