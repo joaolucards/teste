@@ -191,6 +191,27 @@ export async function saveDailyBudgetOverride(
   await setDoc(dailyBudgetDoc(uid), { overrides })
 }
 
+
+export async function saveDefaultDailyBudget(
+  uid: string,
+  defaultAmount: number,
+  defaultFrom: string,
+  defaultNotes?: string,
+): Promise<void> {
+  const snap = await getDoc(dailyBudgetDoc(uid))
+  const current: DailyBudgetSettings = snap.exists()
+    ? (snap.data() as DailyBudgetSettings)
+    : { overrides: [] }
+  // Remove overrides on or after defaultFrom — the default covers them now
+  const overrides = current.overrides.filter(o => o.date < defaultFrom)
+  await setDoc(dailyBudgetDoc(uid), stripUndefined({
+    overrides,
+    defaultAmount,
+    defaultFrom,
+    defaultNotes: defaultNotes || undefined,
+  }))
+}
+
 // ─── Categories ─────────────────────────────────────────────────────
 
 export function subscribeCategories(

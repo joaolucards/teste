@@ -7,38 +7,64 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Textarea } from '@/components/ui/textarea'
 import { CurrencyInput } from '@/components/shared/currency-input'
 import { formatDate } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import type { DailyBudgetOverride } from '@/lib/types'
+
+type SaveScope = 'this-only' | 'from-date'
 
 interface DailyBudgetFormProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   date: Date
   existing?: DailyBudgetOverride
+  existingDefault?: { amount: number; notes?: string; from?: string }
   onSave: (override: DailyBudgetOverride) => void
+  onSaveDefault: (amount: number, from: string, notes?: string) => void
 }
+
+const scopeOptions: { value: SaveScope; label: string; description: string }[] = [
+  {
+    value: 'this-only',
+    label: 'Somente hoje',
+    description: 'Aplica o valor apenas neste dia. Os demais dias permanecem como estão.',
+  },
+  {
+    value: 'from-date',
+    label: 'Este dia em diante',
+    description: 'Define este valor como padrão a partir de hoje. Dias anteriores não são alterados.',
+  },
+]
 
 export function DailyBudgetForm({
   open,
   onOpenChange,
   date,
   existing,
+  existingDefault,
   onSave,
+  onSaveDefault,
 }: DailyBudgetFormProps) {
-  const [amount, setAmount] = useState(existing?.amount ?? 0)
-  const [notes, setNotes] = useState(existing?.notes ?? '')
+  const [amount, setAmount] = useState(0)
+  const [notes, setNotes] = useState('')
+  const [scope, setScope] = useState<SaveScope>('this-only')
 
-  // Reset when dialog opens
   useEffect(() => {
     if (open) {
-      setAmount(existing?.amount ?? 0)
-      setNotes(existing?.notes ?? '')
+      // Pre-fill: specific override > default > 0
+      setAmount(existing?.amount ?? existingDefault?.amount ?? 0)
+      setNotes(existing?.notes ?? existingDefault?.notes ?? '')
+      setScope('this-only')
     }
-  }, [open, existing])
+  }, [open, existing, existingDefault])
 
   const dateStr = date.toISOString().split('T')[0]
 
   function handleSave() {
-    onSave({ date: dateStr, amount, notes: notes.trim() || undefined })
+    if (scope === 'this-only') {
+      onSave({ date: dateStr, amount, notes: notes.trim() || undefined })
+    } else {
+      onSaveDefault(amount, dateStr, notes.trim() || undefined)
+    }
     onOpenChange(false)
   }
 
@@ -71,6 +97,35 @@ export function DailyBudgetForm({
               rows={3}
             />
           </Field>
+
+          {/* Scope selector */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Aplicar a</p>
+            {scopeOptions.map((opt) => (
+              <label
+                key={opt.value}
+                className={cn(
+                  'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
+                  scope === opt.value
+                    ? 'border-primary bg-primary/5'
+                    : 'hover:bg-muted/50'
+                )}
+              >
+                <input
+                  type="radio"
+                  name="daily-scope"
+                  value={opt.value}
+                  checked={scope === opt.value}
+                  onChange={() => setScope(opt.value)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">{opt.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
         </div>
 
         <SheetFooter className="mt-6">

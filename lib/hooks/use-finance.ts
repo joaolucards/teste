@@ -120,7 +120,21 @@ export function useDailyBudget() {
     }
   }, [user])
 
-  return { settings, saveOverride }
+  const saveDefault = useCallback(async (
+    defaultAmount: number,
+    defaultFrom: string,
+    defaultNotes?: string,
+  ) => {
+    if (!user) return
+    try {
+      await fs.saveDefaultDailyBudget(user.uid, defaultAmount, defaultFrom, defaultNotes)
+    } catch (err) {
+      console.error('Erro ao salvar padrão diário:', err)
+      toast.error('Erro ao salvar. Tente novamente.')
+    }
+  }, [user])
+
+  return { settings, saveOverride, saveDefault }
 }
 
 // ─── Categories ───────────────────────────────────────────────────
@@ -267,11 +281,26 @@ export function useBalance(
       }
       return bal
     }, initialBalance)
-    // Subtract daily budget overrides up to today
-    const dailyTotal = (dailyBudgetSettings?.overrides ?? [])
+    // Subtract daily budget amounts up to today
+    const overrideTotal = (dailyBudgetSettings?.overrides ?? [])
       .filter(o => o.date <= today)
       .reduce((s, o) => s + o.amount, 0)
-    return txBalance - dailyTotal
+
+    // Count days covered by default (from defaultFrom to today, excluding days with overrides)
+    let defaultTotal = 0
+    if (dailyBudgetSettings?.defaultAmount && dailyBudgetSettings.defaultFrom) {
+      const start = dailyBudgetSettings.defaultFrom
+      const overrideDates = new Set((dailyBudgetSettings.overrides ?? []).map(o => o.date))
+      const startD = new Date(start + 'T00:00:00')
+      const todayD = new Date(today + 'T00:00:00')
+      for (let d = new Date(startD); d <= todayD; d.setDate(d.getDate() + 1)) {
+        const ds = toISODateString(d)
+        if (!overrideDates.has(ds)) {
+          defaultTotal += dailyBudgetSettings.defaultAmount
+        }
+      }
+    }
+    return txBalance - overrideTotal - defaultTotal
   }, [transactions, initialBalance, dailyBudgetSettings])
 
   const getForecast = useCallback((days = 30) => {
@@ -287,10 +316,16 @@ export function useBalance(
       for (const t of dayTxs) {
         running = t.type === 'income' ? running + t.amount : running - t.amount
       }
-      // Include daily budget override if exists for this date
+      // Include daily budget for this date (override > default > 0)
       const dbOverride = dailyBudgetSettings?.overrides.find(o => o.date === date)
-      if (dbOverride && dbOverride.amount > 0) {
-        running -= dbOverride.amount
+      if (dbOverride) {
+        if (dbOverride.amount > 0) running -= dbOverride.amount
+      } else if (
+        dailyBudgetSettings?.defaultAmount &&
+        dailyBudgetSettings.defaultFrom &&
+        date >= dailyBudgetSettings.defaultFrom
+      ) {
+        running -= dailyBudgetSettings.defaultAmount
       }
       forecast.push({ date, balance: running, transactions: dayTxs })
     }
@@ -305,14 +340,21 @@ export function useBalance(
     // Inject synthetic daily budget entry
     const dateStr = toISODateString(new Date(date))
     const override = dailyBudgetSettings?.overrides.find(o => o.date === dateStr)
+    const hasDefault =
+      dailyBudgetSettings?.defaultAmount !== undefined &&
+      dailyBudgetSettings.defaultFrom &&
+      dateStr >= dailyBudgetSettings.defaultFrom
+    const resolvedAmount = override?.amount ?? (hasDefault ? dailyBudgetSettings!.defaultAmount! : 0)
+    const resolvedNotes = override?.notes ?? (hasDefault ? dailyBudgetSettings!.defaultNotes : undefined)
+
     const dailyEntry: ExpandedTransaction = {
       id: `${DAILY_BUDGET_ID}-${dateStr}`,
       originalId: DAILY_BUDGET_ID,
       type: 'expense',
-      amount: override?.amount ?? 0,
+      amount: resolvedAmount,
       categoryId: '',
       title: 'Gasto Diário',
-      notes: override?.notes,
+      notes: resolvedNotes,
       date: dateStr,
       effectiveDate: dateStr,
       occurrenceDate: dateStr,
@@ -336,10 +378,22 @@ export function useBalance(
         }
         return bal
       }, initialBalance)
-      const dailyTotal = (dailyBudgetSettings?.overrides ?? [])
+      const overrideTotal2 = (dailyBudgetSettings?.overrides ?? [])
         .filter(o => o.date <= str)
         .reduce((s, o) => s + o.amount, 0)
-      return txBal - dailyTotal
+      let defaultTotal2 = 0
+      if (dailyBudgetSettings?.defaultAmount && dailyBudgetSettings.defaultFrom) {
+        const overrideDates2 = new Set((dailyBudgetSettings.overrides ?? []).map(o => o.date))
+        const startD2 = new Date(dailyBudgetSettings.defaultFrom + 'T00:00:00')
+        const targetD2 = new Date(str + 'T00:00:00')
+        for (let d = new Date(startD2); d <= targetD2; d.setDate(d.getDate() + 1)) {
+          const ds = toISODateString(d)
+          if (!overrideDates2.has(ds)) {
+            defaultTotal2 += dailyBudgetSettings.defaultAmount
+          }
+        }
+      }
+      return txBal - overrideTotal2 - defaultTotal2
     }
 
     const days     = Math.ceil((target.getTime() - today.getTime()) / 86_400_000)
@@ -374,16 +428,30 @@ export function useBalance(
    * avgMonthly — avgDaily × dias do mês corrente
    */
   const getDailyBudgetStats = useCallback(() => {
-    const overrides = dailyBudgetSettings?.overrides ?? []
+    const settings = dailyBudgetSettings
     const today = new Date()
-    const thirtyDaysAgo = toISODateString(addDays(today, -30))
     const todayStr = toISODateString(today)
+    const WINDOW = 30 // days to average over
 
-    const recent = overrides.filter(o => o.date >= thirtyDaysAgo && o.date <= todayStr && o.amount > 0)
-    if (recent.length === 0) return { avgDaily: 0, avgMonthly: 0 }
+    let total = 0
+    for (let i = 0; i < WINDOW; i++) {
+      const d = toISODateString(addDays(today, -i))
+      // Specific override takes priority
+      const override = settings?.overrides.find(o => o.date === d)
+      if (override) {
+        total += override.amount
+      } else if (
+        settings?.defaultAmount !== undefined &&
+        settings.defaultFrom &&
+        d >= settings.defaultFrom
+      ) {
+        // Default value applies to this day
+        total += settings.defaultAmount
+      }
+      // else: no data for this day → contributes 0
+    }
 
-    const total = recent.reduce((s, o) => s + o.amount, 0)
-    const avgDaily = total / recent.length
+    const avgDaily = total / WINDOW
     const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
     return { avgDaily, avgMonthly: avgDaily * daysInMonth }
   }, [dailyBudgetSettings])

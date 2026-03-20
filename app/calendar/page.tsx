@@ -18,7 +18,7 @@ export default function CalendarPage() {
   } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
-  const { settings: dailyBudgetSettings, saveOverride: saveDailyBudgetOverride } = useDailyBudget()
+  const { settings: dailyBudgetSettings, saveOverride: saveDailyBudgetOverride, saveDefault: saveDailyBudgetDefault } = useDailyBudget()
   const { getTransactionsForDate, getBalanceForDate } = useBalance(
     transactions,
     settings.initialBalance,
@@ -39,6 +39,10 @@ export default function CalendarPage() {
 
   const handleSaveDailyBudget = (override: DailyBudgetOverride) => {
     saveDailyBudgetOverride(override)
+  }
+
+  const handleSaveDailyBudgetDefault = (amount: number, from: string, notes?: string) => {
+    saveDailyBudgetDefault(amount, from, notes)
   }
 
   const handleDateSelect = (date: Date) => {
@@ -167,7 +171,17 @@ export default function CalendarPage() {
           existing={dailyBudgetSettings.overrides.find(
             o => o.date === selectedDate.toISOString().split('T')[0]
           )}
+          existingDefault={
+            dailyBudgetSettings.defaultAmount !== undefined
+              ? {
+                  amount: dailyBudgetSettings.defaultAmount,
+                  notes: dailyBudgetSettings.defaultNotes,
+                  from: dailyBudgetSettings.defaultFrom,
+                }
+              : undefined
+          }
           onSave={handleSaveDailyBudget}
+          onSaveDefault={handleSaveDailyBudgetDefault}
         />
       )}
     </>
