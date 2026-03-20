@@ -64,7 +64,7 @@ export default function CalendarPage() {
         addOverride(transaction.id, {
           date: scopeInfo.date,
           amount: transaction.amount,
-          description: transaction.description,
+          title: transaction.title,
           categoryId: transaction.categoryId,
           effectiveDate: transaction.effectiveDate,
           paymentMethod: transaction.paymentMethod,

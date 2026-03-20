@@ -63,11 +63,15 @@ export function FinancialCalendar({
     for (const day of calendarDays) {
       if (!day) continue
       const dateStr = toISODateString(day)
-      // Filtra transações ocultas do calendário — elas continuam no saldo, só somem do grid
-      const dayTxs = getTransactionsForDate(day).filter(tx => !tx.hiddenFromCalendar)
+      const allDayTxs = getTransactionsForDate(day)
+      const nonDaily = allDayTxs.filter(tx => !tx.isDailyBudget)
+
+      // O gasto diário entra na conta do grid apenas quando há outras transações no dia
+      const txsForGrid = nonDaily.length > 0 ? allDayTxs : nonDaily
+
       let income = 0
       let expense = 0
-      for (const tx of dayTxs) {
+      for (const tx of txsForGrid) {
         if (tx.type === 'income') income += tx.amount
         else expense += tx.amount
       }

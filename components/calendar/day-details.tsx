@@ -13,9 +13,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Category, ExpandedTransaction } from '@/lib/types'
-import { Plus, ArrowDownLeft, ArrowUpRight, CreditCard, Banknote, Repeat, Wallet, Trash2 } from 'lucide-react'
+import {
+  Plus, ArrowDownLeft, ArrowUpRight, CreditCard, Banknote,
+  Repeat, Wallet, Trash2, Info,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type DeleteScope = 'all' | 'this-only' | 'from-date'
@@ -54,11 +63,15 @@ export function DayDetails({
 
   const getCategory = (id: string) => categories.find(c => c.id === id)
 
-  const income = transactions
+  // Split daily budget from regular transactions
+  const dailyBudgetTx = transactions.find(tx => tx.isDailyBudget)
+  const regularTxs = transactions.filter(tx => !tx.isDailyBudget)
+
+  const income = regularTxs
     .filter(tx => tx.type === 'income')
     .reduce((sum, tx) => sum + tx.amount, 0)
 
-  const expenses = transactions
+  const expenses = regularTxs
     .filter(tx => tx.type === 'expense')
     .reduce((sum, tx) => sum + tx.amount, 0)
 
@@ -102,6 +115,80 @@ export function DayDetails({
     },
   ]
 
+  function TransactionRow({ tx }: { tx: ExpandedTransaction }) {
+    const category = getCategory(tx.categoryId)
+    const isIncome = tx.type === 'income'
+
+    return (
+      <div className="group flex w-full items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+        <button
+          className="flex flex-1 items-center gap-3 text-left min-w-0"
+          onClick={() => onEditTransaction(
+            tx.originalId || tx.id,
+            tx.isRecurrence ? tx.occurrenceDate : undefined
+          )}
+        >
+          <div className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+            isIncome
+              ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+              : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+          )}>
+            {isIncome ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="text-sm font-medium truncate">{tx.title || 'Sem título'}</p>
+              {tx.isRecurrence && (
+                <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />
+              )}
+              {tx.notes && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground shrink-0 cursor-default" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[220px] text-xs whitespace-pre-wrap">
+                      {tx.notes}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {category && <span className="text-xs text-muted-foreground">{category.name}</span>}
+              {tx.paymentMethod && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    {tx.paymentMethod === 'credit'
+                      ? <CreditCard className="h-3 w-3" />
+                      : <Banknote className="h-3 w-3" />}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <p className={cn(
+            'text-sm font-semibold shrink-0',
+            isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+          )}>
+            {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
+          </p>
+        </button>
+
+        <button
+          onClick={(e) => handleDeleteClick(tx, e)}
+          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    )
+  }
+
   return (
     <>
       <Card>
@@ -122,7 +209,7 @@ export function DayDetails({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Balance Card */}
+          {/* Balance */}
           <div className="flex items-center gap-4 rounded-lg bg-muted/50 p-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <Wallet className="h-6 w-6 text-primary" />
@@ -140,8 +227,53 @@ export function DayDetails({
             </div>
           </div>
 
-          {/* Summary */}
-          {transactions.length > 0 && (
+          {/* Daily Budget section */}
+          {dailyBudgetTx && (
+            <div className="rounded-lg border border-dashed p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Gasto Diário
+                </p>
+                <button
+                  onClick={() => onEditTransaction(
+                    dailyBudgetTx.originalId || dailyBudgetTx.id,
+                    dailyBudgetTx.isRecurrence ? dailyBudgetTx.occurrenceDate : undefined
+                  )}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Editar
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium">{dailyBudgetTx.title || 'Gasto do dia'}</p>
+                  {dailyBudgetTx.notes && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground cursor-default" />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[220px] text-xs whitespace-pre-wrap">
+                          {dailyBudgetTx.notes}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+                <p className={cn(
+                  'text-sm font-semibold',
+                  dailyBudgetTx.amount > 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-muted-foreground'
+                )}>
+                  {dailyBudgetTx.amount > 0 ? `-${formatCurrency(dailyBudgetTx.amount)}` : '—'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Summary (regular txs only) */}
+          {regularTxs.length > 0 && (
             <div className="grid grid-cols-2 gap-4">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
                 <p className="text-xs text-emerald-600 dark:text-emerald-400">Receitas</p>
@@ -158,106 +290,24 @@ export function DayDetails({
             </div>
           )}
 
-          {/* Transactions List */}
-          {transactions.length === 0 ? (
+          {/* Regular transactions list */}
+          {regularTxs.length === 0 && !dailyBudgetTx ? (
             <div className="py-8 text-center text-muted-foreground">
               <p>Nenhuma transação neste dia</p>
               <Button variant="link" className="mt-2" onClick={onAddTransaction}>
                 Adicionar transação
               </Button>
             </div>
-          ) : (
+          ) : regularTxs.length > 0 ? (
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-muted-foreground">Transações</h4>
-              {transactions.map((tx) => {
-                const category = getCategory(tx.categoryId)
-                const isIncome = tx.type === 'income'
-
-                return (
-                  <div
-                    key={tx.id}
-                    className="group flex w-full items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
-                  >
-                    {/* Clickable area for editing */}
-                    <button
-                      className="flex flex-1 items-center gap-3 text-left min-w-0"
-                      onClick={() => onEditTransaction(
-                        tx.originalId || tx.id,
-                        tx.isRecurrence ? tx.occurrenceDate : undefined
-                      )}
-                      title={tx.isRecurrence ? 'Clique para editar esta ocorrência' : 'Clique para editar'}
-                    >
-                      <div className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                        isIncome
-                          ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-                      )}>
-                        {isIncome ? (
-                          <ArrowDownLeft className="h-4 w-4" />
-                        ) : (
-                          <ArrowUpRight className="h-4 w-4" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {tx.description || 'Sem descrição'}
-                          </p>
-                          {tx.isRecurrence && (
-                            <Repeat
-                              className="h-3 w-3 text-muted-foreground shrink-0"
-                              title="Ocorrência recorrente"
-                            />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {category && (
-                            <span className="text-xs text-muted-foreground">{category.name}</span>
-                          )}
-                          {tx.paymentMethod && (
-                            <>
-                              <span className="text-muted-foreground">•</span>
-                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                {tx.paymentMethod === 'credit' ? (
-                                  <CreditCard className="h-3 w-3" />
-                                ) : (
-                                  <Banknote className="h-3 w-3" />
-                                )}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <p className={cn(
-                        'text-sm font-semibold shrink-0',
-                        isIncome
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-red-600 dark:text-red-400'
-                      )}>
-                        {isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
-                      </p>
-                    </button>
-
-                    {/* Delete button */}
-                    <button
-                      onClick={(e) => handleDeleteClick(tx, e)}
-                      className="shrink-0 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                      title="Excluir transação"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                )
-              })}
+              {regularTxs.map((tx) => <TransactionRow key={tx.id} tx={tx} />)}
             </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
-      {/* Delete confirmation dialog */}
+      {/* Delete dialog */}
       <AlertDialog
         open={!!pendingDelete}
         onOpenChange={(open) => { if (!open) setPendingDelete(null) }}

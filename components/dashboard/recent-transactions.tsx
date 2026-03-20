@@ -73,7 +73,7 @@ export function RecentTransactions({ transactions, categories }: RecentTransacti
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{tx.description}</p>
+                  <p className="text-sm font-medium truncate">{tx.title}</p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span>{category?.name}</span>
                     {tx.paymentMethod && (

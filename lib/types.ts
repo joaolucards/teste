@@ -24,7 +24,8 @@ export interface Recurrence {
 export interface RecurrenceOverride {
   date: string // ISO date da ocorrência que está sendo sobrescrita
   amount?: number
-  description?: string
+  title?: string
+  notes?: string
   categoryId?: string
   effectiveDate?: string
   paymentMethod?: PaymentMethod
@@ -36,13 +37,21 @@ export interface Transaction {
   type: 'income' | 'expense'
   amount: number
   categoryId: string
-  description: string
+  /** Título curto exibido no card */
+  title: string
+  /** Notas/detalhamento exibido via tooltip */
+  notes?: string
   date: string // data da transação (ISO string)
   effectiveDate: string // data do débito efetivo (para crédito)
   paymentMethod?: PaymentMethod // apenas para expenses
   recurrence: Recurrence
   overrides?: RecurrenceOverride[] // ajustes por ocorrência
-  hiddenFromCalendar?: boolean // oculta dots/totais no grid, mas conta no saldo
+  /**
+   * Quando true, esta é a transação de "Gasto Diário" — única no sistema.
+   * Fica oculta no grid do calendário se for a única transação do dia,
+   * mas entra na conta quando há outras transações.
+   */
+  isDailyBudget?: boolean
   createdAt: string
 }
 

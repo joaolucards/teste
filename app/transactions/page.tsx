@@ -55,7 +55,7 @@ function TransactionsContent() {
         addOverride(transaction.id, {
           date: scopeInfo.date,
           amount: transaction.amount,
-          description: transaction.description,
+          title: transaction.title,
           categoryId: transaction.categoryId,
           effectiveDate: transaction.effectiveDate,
           paymentMethod: transaction.paymentMethod,
@@ -232,7 +232,7 @@ function TransactionsContent() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium truncate">{tx.description || 'Sem descrição'}</p>
+                            <p className="font-medium truncate">{tx.title || 'Sem título'}</p>
                             {hasRecurrence && (
                               <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />
                             )}

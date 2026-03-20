@@ -5,6 +5,7 @@ import { BalanceCard } from '@/components/dashboard/balance-card'
 import { ForecastChart } from '@/components/dashboard/forecast-chart'
 import { CategoryBreakdown } from '@/components/dashboard/category-breakdown'
 import { RecentTransactions } from '@/components/dashboard/recent-transactions'
+import { DailyBudgetCard } from '@/components/dashboard/daily-budget-card'
 import { useTransactions, useCategories, useSettings, useBalance } from '@/lib/hooks/use-finance'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -15,7 +16,7 @@ export default function DashboardPage() {
   const { transactions, isLoading: txLoading } = useTransactions()
   const { categories, isLoading: catLoading } = useCategories()
   const { settings } = useSettings()
-  const { currentBalance, getForecast, getMonthSummary, getCategoryBreakdown } = useBalance(
+  const { currentBalance, getForecast, getMonthSummary, getCategoryBreakdown, getDailyBudgetStats } = useBalance(
     transactions,
     settings.initialBalance
   )
@@ -32,6 +33,10 @@ export default function DashboardPage() {
             <Skeleton className="h-32" />
             <Skeleton className="h-32" />
           </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </div>
           <Skeleton className="h-[350px]" />
           <div className="grid gap-4 md:grid-cols-2">
             <Skeleton className="h-[300px]" />
@@ -46,6 +51,7 @@ export default function DashboardPage() {
   const monthSummary = getMonthSummary(currentMonth)
   const forecast = getForecast(30)
   const expenseBreakdown = getCategoryBreakdown(currentMonth, 'expense')
+  const dailyBudgetStats = getDailyBudgetStats()
 
   return (
     <>
@@ -66,6 +72,13 @@ export default function DashboardPage() {
           monthIncome={monthSummary.income}
           monthExpenses={monthSummary.expenses}
         />
+
+        {dailyBudgetStats && (
+          <DailyBudgetCard
+            avgDaily={dailyBudgetStats.avgDaily}
+            avgMonthly={dailyBudgetStats.avgMonthly}
+          />
+        )}
 
         <ForecastChart forecast={forecast} />
 

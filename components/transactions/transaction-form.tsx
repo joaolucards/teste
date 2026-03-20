@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Field, FieldLabel } from '@/components/ui/field'
+import { Textarea } from '@/components/ui/textarea'
 import { CurrencyInput } from '@/components/shared/currency-input'
 import { DatePicker } from '@/components/shared/date-picker'
 import { CategoryIcon } from '@/components/shared/category-icon'
@@ -47,7 +48,8 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const [type, setType] = useState<'income' | 'expense'>(transaction?.type || defaultType)
   const [amount, setAmount] = useState(transaction?.amount || 0)
-  const [description, setDescription] = useState(transaction?.description || '')
+  const [title, setTitle] = useState(transaction?.title || '')
+  const [notes, setNotes] = useState(transaction?.notes || '')
   const [categoryId, setCategoryId] = useState(transaction?.categoryId || '')
   const [date, setDate] = useState<Date | undefined>(
     transaction?.date ? new Date(transaction.date) : defaultDate || new Date()
@@ -70,9 +72,6 @@ export function TransactionForm({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(
     transaction?.recurrence.endDate ? new Date(transaction.recurrence.endDate) : undefined
   )
-  const [hiddenFromCalendar, setHiddenFromCalendar] = useState(
-    transaction?.hiddenFromCalendar ?? false
-  )
 
   // Estado do seletor de escopo (aparece ao salvar uma transação recorrente em edição)
   const [formStep, setFormStep] = useState<'edit' | 'scope'>('edit')
@@ -90,7 +89,8 @@ export function TransactionForm({
       if (transaction) {
         setType(transaction.type)
         setAmount(transaction.amount)
-        setDescription(transaction.description)
+        setTitle(transaction.title || '')
+        setNotes(transaction.notes || '')
         setCategoryId(transaction.categoryId)
         setDate(parseISODate(transaction.date))
         setPaymentMethod(transaction.paymentMethod || 'debit')
@@ -99,7 +99,6 @@ export function TransactionForm({
         setRecurrenceType(transaction.recurrence.type === 'none' ? 'monthly' : transaction.recurrence.type)
         setCustomInterval(transaction.recurrence.interval || 30)
         setRecurrenceEndDate(transaction.recurrence.endDate ? parseISODate(transaction.recurrence.endDate) : undefined)
-        setHiddenFromCalendar(transaction.hiddenFromCalendar ?? false)
         // Pré-selecionar escopo se veio do calendário
         if (occurrenceDate) {
           setEditScope('this-only')
@@ -111,7 +110,8 @@ export function TransactionForm({
       } else {
         setType(defaultType)
         setAmount(0)
-        setDescription('')
+        setTitle('')
+        setNotes('')
         setCategoryId('')
         setDate(defaultDate || new Date())
         setPaymentMethod('debit')
@@ -120,7 +120,6 @@ export function TransactionForm({
         setRecurrenceType('monthly')
         setCustomInterval(30)
         setRecurrenceEndDate(undefined)
-        setHiddenFromCalendar(false)
       }
     }
   }, [open, transaction, defaultDate, defaultType, occurrenceDate])
@@ -144,7 +143,8 @@ export function TransactionForm({
     type,
     amount,
     categoryId,
-    description: description.trim(),
+    title: title.trim(),
+    notes: notes.trim() || undefined,
     date: toISODateString(date!),
     effectiveDate: toISODateString(
       type === 'expense' && paymentMethod === 'credit' && effectiveDate
@@ -160,7 +160,6 @@ export function TransactionForm({
         }
       : { type: 'none' },
     overrides: transaction?.overrides ?? [],
-    hiddenFromCalendar: hiddenFromCalendar || undefined,
     createdAt: transaction?.createdAt || new Date().toISOString(),
   })
 
@@ -251,11 +250,22 @@ export function TransactionForm({
               </Field>
 
               <Field>
-                <FieldLabel>Descrição</FieldLabel>
+                <FieldLabel>Título</FieldLabel>
                 <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ex: Supermercado, Salário..."
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel>Notas <span className="text-xs text-muted-foreground font-normal">(opcional)</span></FieldLabel>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Detalhes adicionais..."
+                  className="resize-none"
+                  rows={2}
                 />
               </Field>
 
@@ -392,17 +402,6 @@ export function TransactionForm({
                       />
                     </Field>
 
-                    {recurrenceType === 'daily' && (
-                      <div className="flex items-center justify-between rounded-lg border border-dashed p-3">
-                        <div>
-                          <p className="text-sm font-medium">Ocultar no calendário</p>
-                          <p className="text-xs text-muted-foreground">
-                            A transação conta no saldo mas não exibe pontos ou totais no grid do calendário
-                          </p>
-                        </div>
-                        <Switch checked={hiddenFromCalendar} onCheckedChange={setHiddenFromCalendar} />
-                      </div>
-                    )}
                   </>
                 )}
               </div>

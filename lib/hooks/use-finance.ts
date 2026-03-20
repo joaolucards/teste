@@ -203,7 +203,7 @@ function expandRecurrences(
         expanded.push({
           ...tx,
           amount:        override?.amount        ?? tx.amount,
-          description:   override?.description   ?? tx.description,
+          title:         override?.title         ?? tx.title,
           categoryId:    override?.categoryId    ?? tx.categoryId,
           effectiveDate: override?.effectiveDate ?? dateStr,
           paymentMethod: override?.paymentMethod ?? tx.paymentMethod,
@@ -299,5 +299,28 @@ export function useBalance(transactions: Transaction[], initialBalance: number) 
     return breakdown
   }, [transactions])
 
-  return { currentBalance, getForecast, getTransactionsForDate, getBalanceForDate, getMonthSummary, getCategoryBreakdown }
+
+  /**
+   * Retorna estatísticas da transação de Gasto Diário.
+   * avgDaily  — média dos últimos 30 dias com valor > 0
+   * avgMonthly — avgDaily × dias do mês corrente
+   */
+  const getDailyBudgetStats = useCallback(() => {
+    const dailyBudget = transactions.find(tx => tx.isDailyBudget)
+    if (!dailyBudget) return null
+
+    const today = new Date()
+    const thirtyDaysAgo = addDays(today, -30)
+    const expanded = expandRecurrences([dailyBudget], thirtyDaysAgo, today)
+    const withValue = expanded.filter(tx => tx.amount > 0)
+
+    if (withValue.length === 0) return { avgDaily: 0, avgMonthly: 0, transaction: dailyBudget }
+
+    const total = withValue.reduce((s, tx) => s + tx.amount, 0)
+    const avgDaily = total / withValue.length
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+    return { avgDaily, avgMonthly: avgDaily * daysInMonth, transaction: dailyBudget }
+  }, [transactions])
+
+  return { currentBalance, getForecast, getTransactionsForDate, getBalanceForDate, getMonthSummary, getCategoryBreakdown, getDailyBudgetStats }
 }
